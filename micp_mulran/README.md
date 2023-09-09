@@ -58,25 +58,33 @@ Each KAIST launch file should point to the same map but to different bag files t
 Next, execute a launch file to check if everything went fine, e.g.:
 
 ```console
-roslaunch micp_mulran kaist01_micp_gps_imu.launch
+roslaunch micp_mulran kaist01_micp_gps_imu.launch gui:=true
 ```
 
 A RViz window is opening. Wait a few moments for the mesh file to be loaded and then press SPACE in the console to unpause the bag-file. The results should look like:
 
 ![Teaser](dat/micp_mulran.png)
 
-### Launching
-
-
-
-### Launching - Recording
+#### Recording
 
 Execute a launch file without GUI (RViz):
 
 ```console
-roslaunch micp_mulran micp_mulran_dcc01.launch
+roslaunch micp_mulran kaist01_micp_gps_imu.launch gui:=false
 ```
 
 and pipe the results into a new Bag-File, by running `rosbag record -a` in another terminal.
 
 The resulting Bag-File now consists of an additional transformation between `world` and `map` frame that represents the localization of the autonomous car in the loaded mesh.
+
+
+#### Evaluation Files
+
+To produce evaluation files you have of execute. 
+
+```console
+roslaunch micp_mulran kaist01_micp_gps_imu.launch gui:=false generate_evaluation:=true rate:=0.5
+```
+
+Since generating the evaluation metrics requires some time, the bag file rate was halfed here, to prevent false results because of doing the evaluation. 
+
