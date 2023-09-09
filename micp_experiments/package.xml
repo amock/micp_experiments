@@ -12,6 +12,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   
+  <exec_depend>micp_experiments_helper</exec_depend>
   <exec_depend>micp_hilti</exec_depend>
   <exec_depend>micp_mulran</exec_depend>
   <exec_depend>micp_gazebo</exec_depend>

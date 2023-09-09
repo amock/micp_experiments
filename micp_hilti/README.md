@@ -36,7 +36,7 @@ For IMU as prior odometry estimation:
 ```bash
 user@pc:~$ sudo apt-get install ros-noetic-imu-filter-madgwick
 ```
-### amock_tools
+### micp_experiments_helper
 
 Some tools for tf-preprocessing of Hilti Bags. Move from "packages" folder to your workspace.
 

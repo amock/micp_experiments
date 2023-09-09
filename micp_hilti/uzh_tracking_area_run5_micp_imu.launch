@@ -4,7 +4,7 @@
 
 <include file="$(env PWD)/uzh_tracking_area_run5.launch" />
 
-<node pkg="amock_tools" type="leaf_odom_to_root" name="leaf_odom_to_root" >
+<node pkg="micp_experiments_helper" type="leaf_odom_to_root" name="leaf_odom_to_root" >
   <param name="base_frame" value="base_link" />
   <param name="odom_frame_leaf" value="imu_madgwick" />
   <param name="odom_frame" value="odom" />

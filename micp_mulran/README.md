@@ -26,7 +26,7 @@ We used a desktop pc with the following specifications:
 - Ryzen 7 3800X
 - Rmagine Version (v2.1.0) - Only the Embree (CPU) backend is used
 - RMCL (v1.1.2)
-- (optional) For visualizations: rmagine_ros + old mesh_tools version
+- (optional) For visualizations: https://github.com/aock/mesh_tools
 
 The reproduction of the resulting Bag-File can be done by executing the respective launch-files in this repository. Each launch-file requires two files: a Bag-File for sensor data and a Mesh-Map-file as map for MICP-L.
 

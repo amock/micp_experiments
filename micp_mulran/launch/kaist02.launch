@@ -27,7 +27,7 @@
     <param name="reverse_tf" value="true" />
 </node>
 
-<node name="fuse_gps_imu" type="fuse_gps_imu" pkg="amock_tools">
+<node name="fuse_gps_imu" type="fuse_gps_imu" pkg="micp_experiments_helper">
 </node>
 
 # run registration

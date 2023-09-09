@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 project(micp_mulran)
 
-
 find_package(catkin REQUIRED COMPONENTS
     roscpp
     geometry_msgs

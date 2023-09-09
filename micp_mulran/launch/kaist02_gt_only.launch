@@ -12,7 +12,7 @@
 <node pkg="rosbag" type="play" name="rosbag" args="$(arg mulran_bag) -r $(arg rate) --pause" output="screen" />
 
 # gt odometry
-<node name="leaf_odom_to_root" pkg="amock_tools" type="leaf_odom_to_root">
+<node name="leaf_odom_to_root" pkg="micp_experiments_helper" type="leaf_odom_to_root">
 	<param name="base_frame" value="base_link" />
 	<param name="odom_frame_leaf" value="gt" />
 	<param name="odom_frame" value="odom_dummy" />
