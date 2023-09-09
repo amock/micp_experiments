@@ -1,0 +1,32 @@
+<?xml version="1.0" ?>
+
+<launch>
+
+<arg name="rate" default="1.0" />
+
+<param name="/use_sim_time" value="false" />
+
+<node pkg="rosbag" type="play" name="rosbag" args="$(env PWD)/uzh_tracking_area_run2.bag -r $(arg rate) /os_cloud_node/imu:=/ouster/imu" output="screen" />
+
+<node  name="pcl_deskew_node" pkg="pointcloud_motion_deskew" type="pointcloud2_deskew_node">
+    <remap from="input_point_cloud" to="/os_cloud_node/points" />
+    <remap from="output_point_cloud" to="/ouster/points" />
+    <param name="fixed_frame_for_lidar" value="world" />
+</node>
+
+<node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_node">
+    <remap from="/imu/data" to="/ouster/imu_filtered"/>
+    <remap from="/imu/data_raw" to="/ouster/imu" />
+
+    <param name="gain" value="0.1" />
+    <param name="zeta" value="0.0" />
+
+    <param name="use_mag" value="false" />
+    <param name="remove_gravity_vector" value="false" />
+
+    <param name="fixed_frame" value="imu_madgwick" />
+    <param name="publish_tf" value="true" />
+    <param name="reverse_tf" value="true" />
+</node>
+
+</launch>

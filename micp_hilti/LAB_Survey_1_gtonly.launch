@@ -1,0 +1,38 @@
+<?xml version="1.0" ?>
+
+<launch>
+
+<include file="$(env PWD)/LAB_Survey_1.launch" />
+
+<node name="leaf_odom_to_root" pkg="amock_tools" type="leaf_odom_to_root">
+	<param name="base_frame" value="base_link" />
+	<param name="odom_frame_leaf" value="world" />
+	<param name="odom_frame" value="odom" />
+</node>
+
+# RMCL
+# visualize map
+<arg name="mesh_file" default="$(env PWD)/LAB_Survey_2_meshes/LAB_Survey_2_gt_shc_r04_cleaned.ply" />
+<arg name="initial_guess" default="[-0.95147,-3.29943,-1.13995, -0.0486531, -0.437958, 1.39287]" />
+
+# run registration
+<node pkg="rmcl" type="micp_eval" name="micp_eval" output="screen">
+    <param name="mesh_file" type="string" value="$(arg mesh_file)" />
+    <rosparam param="initial_guess" subst_value="True">$(arg initial_guess)</rosparam>
+    <param name="lidar_frame" value="os1_lidar"/>
+
+    <param name="disable_registration" value="true" />
+    <param name="generate_evaluation" value="false" />
+    
+    <!-- Correction Modes -->
+    <!-- Mode 0: -->
+    <!--    (SPC, Correct), (SPC, Correct), (SPC, Correct), ... (iterations) -->
+    <!-- Mode 1: -->
+    <!--    SPC, Correct, Correct, Correct, Correct, ... (iterations)-->
+    <param name="correction_mode" value="1" />
+    <param name="iterations" value="20" />
+</node>
+
+<!-- Open RViz - load LAB_Survey_2_gt_shc_r04_cleaned into mesh_tools/rviz_map_plugin -->
+
+</launch>

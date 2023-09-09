@@ -1,0 +1,36 @@
+<?xml version="1.0" ?>
+
+<launch>
+
+<include file="$(env PWD)/uzh_tracking_area_run5.launch" />
+
+<node pkg="amock_tools" type="leaf_odom_to_root" name="leaf_odom_to_root" >
+  <param name="base_frame" value="base_link" />
+  <param name="odom_frame_leaf" value="imu_madgwick" />
+  <param name="odom_frame" value="odom" />
+</node>
+
+# RMCL
+# visualize map
+
+<arg name="mesh_file" default="$(env PWD)/uzh_tracking_area_run2_meshes/uzh_mesh_featsense_reduced_09.ply" />
+<arg name="initial_guess" default="[1.38077, 2.9713, 0.306026, -3.12951, -0.0702258, -0.00829678]" />
+
+# run registration
+<node pkg="rmcl" type="micp_eval" name="micp_eval" output="screen">
+    <param name="mesh_file" type="string" value="$(arg mesh_file)" />
+    <rosparam param="initial_guess" subst_value="True">$(arg initial_guess)</rosparam>
+    
+    <param name="disable_registration" value="false" />
+    <param name="generate_evaluation" value="false" />
+    
+    <!-- Correction Modes -->
+    <!-- Mode 0: -->
+    <!--    (SPC, Correct), (SPC, Correct), (SPC, Correct), ... (iterations) -->
+    <!-- Mode 1: -->
+    <!--    SPC, Correct, Correct, Correct, Correct, ... (iterations)-->
+    <param name="correction_mode" value="1" />
+    <param name="iterations" value="20" />
+</node>
+
+</launch>
