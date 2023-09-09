@@ -31,7 +31,7 @@
     <remap from="ouster/points" to="os1_points" />
 
     <param name="disable_registration" value="true" />
-    <param name="generate_evaluation" value="true" />
+    <param name="generate_evaluation" value="false" />
 
     <param name="correction_mode" value="1" />
     <param name="iterations" value="20" />

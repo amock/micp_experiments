@@ -3,12 +3,12 @@
 <launch>
 
 <arg name="gui" default="true" />
-<arg name="rate" default="0.5" />
+<arg name="rate" default="1.0" />
 <arg name="mulran_bag" default="/home/amock/datasets/mulran/bags/KAIST/KAIST01.bag" />
 <arg name="mesh_file" default="/home/amock/datasets/micp_mulran/KAIST/mulran_kaist02_mesh_lvr2.ply" />
 <arg name="initial_guess" default="[-115.620, 109.790, 20.5, 0.037806, 0.0252877, 2.03837]" />
 
-# Play bag file
+# play bag file
 <node pkg="rosbag" type="play" name="rosbag" args="$(arg mulran_bag) -r $(arg rate) --pause" output="screen" />
 
 # simple odometry
@@ -43,7 +43,7 @@
     <remap from="ouster/points" to="os1_points" />
 
     <param name="disable_registration" value="false" />
-    <param name="generate_evaluation" value="true" />
+    <param name="generate_evaluation" value="false" />
 
     <param name="correction_mode" value="1" />
     <param name="iterations" value="20" />
