@@ -1,6 +1,7 @@
 map: 0
 
-sensor_pose: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+sensor_poses:
+- [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 sampling:
   distribution: 1
   seed: 42

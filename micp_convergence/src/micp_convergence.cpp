@@ -18,6 +18,8 @@
 
 #include <Eigen/Dense>
 
+#include <fstream>
+
 
 
 namespace rm = rmagine;
@@ -130,7 +132,7 @@ rmcl::CorrectionResults<rm::RAM> correct_embree_p2l(
     float max_distance = 0.5;
 
 
-    // #pragma omp parallel for default(shared) if(Tbms.size() > 4)
+    #pragma omp parallel for default(shared) if(Tbms.size() > 4)
     for(size_t pid=0; pid<Tbms.size(); pid++)
     {
         const rmagine::Transform Tbm = Tbms[pid];
@@ -267,12 +269,16 @@ int main(int argc, char** argv)
 
     int Nruns = 50;
     double dist_converged = 0.01;
+
+    std::string evalfile_name = "micp_convergence";
     
 
     
     
     
     // CODE START
+
+    
 
 
     nh_p.param<int>("map", map_type, 0);
@@ -284,6 +290,8 @@ int main(int argc, char** argv)
     nh_p.param<int>("sampling/poses", Nposes, 100);
     nh_p.param<int>("optimizer/iterations", Nruns, 50);
     nh_p.param<double>("optimizer/dist_converged", dist_converged, 0.01);
+
+    nh_p.param<std::string>("evaluation_file", evalfile_name, "micp_convergence");
     
     XmlRpc::XmlRpcValue sensor_poses_xml;
     if(nh_p.getParam("sensor_poses", sensor_poses_xml))
@@ -323,6 +331,7 @@ int main(int argc, char** argv)
         }
     }
 
+
     CubeGridSettings settings;
     settings.dist_between_cubes = 0.3;
     settings.use_instances = false;
@@ -359,6 +368,14 @@ int main(int argc, char** argv)
     } else if(map_type == 1) {
         std::cout << "- map: avz" << std::endl;
     }
+
+    if(sample_dist_type == 0)
+    {
+        std::cout << "- distribution: uniform circle" << std::endl;
+    } else if(sample_dist_type == 1) {
+        std::cout << "- distribution: uniform square" << std::endl;
+    }
+
     std::cout << "- sample radii: [";
     for(size_t i=0; i<sample_radius_steps; i++)
     {
@@ -381,6 +398,8 @@ int main(int argc, char** argv)
 
     std::default_random_engine eng{(size_t)sample_seed};
 
+
+
     std::cout << "ICP convergence rates (#convergences / #poses) dependend on correspondence finding algorithm:" << std::endl;
     std::cout << "1. P2L: Point 2 Plane" << std::endl;
     std::cout << "2. SPC: Simulative Projective Correspondences" << std::endl;
@@ -389,10 +408,20 @@ int main(int argc, char** argv)
     std::cout << "|------|--------|---------|---------|" << std::endl;
 
 
+    
+     
+
     for(size_t spid=0; spid < sensor_poses.size(); spid++)
     {
-        rm::Transform T_dest = sensor_poses[spid];
+        std::stringstream ss;
+        ss << evalfile_name << "_" << spid << ".csv";
+        std::ofstream evalfile;
+        evalfile.open(ss.str());
+        evalfile << std::fixed << std::setprecision(8);
+        evalfile << "sample radius, P2L, SPC" << std::endl;
 
+
+        rm::Transform T_dest = sensor_poses[spid];
         
         using ResultT = rm::Bundle<
             rm::Ranges<rm::RAM>
@@ -504,6 +533,11 @@ int main(int argc, char** argv)
                 << std::setfill(' ') << std::setw(6) << p2l_rate * 100.0 << "% | " 
                 << std::setfill(' ') << std::setw(6) << spc_rate * 100.0 << "% |" << std::endl;
         
+            evalfile << spid+1 << ", " 
+                     << sample_radius << ", " 
+                     << p2l_rate << ", " 
+                     << spc_rate << std::endl;
+
         }
     }
     
