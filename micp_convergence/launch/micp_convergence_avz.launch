@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+
+<launch>
+
+<node pkg="micp_convergence" type="micp_convergence" name="micp_convergence" output="screen">
+    <rosparam command="load" file="$(find micp_convergence)/config/avz.yaml" />
+</node>
+
+</launch>

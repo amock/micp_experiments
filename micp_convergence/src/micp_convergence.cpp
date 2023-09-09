@@ -248,7 +248,11 @@ int main(int argc, char** argv)
     // 0: 3x3 cube grid
     // 1: AVZ
     int map_type = 1;
-    rm::Transform T_dest = rm::Transform::Identity();
+    // rm::Transform T_dest = rm::Transform::Identity();
+
+    std::vector<rm::Transform> sensor_poses = {
+        rm::Transform::Identity()
+    };
     
     
     // Distribution type
@@ -265,6 +269,12 @@ int main(int argc, char** argv)
     double dist_converged = 0.01;
     
 
+    
+    
+    
+    // CODE START
+
+
     nh_p.param<int>("map", map_type, 0);
     nh_p.param<int>("sampling/distribution", sample_dist_type, 0);
     nh_p.param<int>("sampling/seed", sample_seed, 42);
@@ -274,48 +284,44 @@ int main(int argc, char** argv)
     nh_p.param<int>("sampling/poses", Nposes, 100);
     nh_p.param<int>("optimizer/iterations", Nruns, 50);
     nh_p.param<double>("optimizer/dist_converged", dist_converged, 0.01);
-
-    std::vector<double> sensor_pose;
-    nh_p.param<std::vector<double> >("sensor_pose", sensor_pose, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0});
-
-    if(sensor_pose.size() == 6)
-    {
-        // x, y, z, roll, pitch, yaw
-        T_dest.t.x = sensor_pose[0];
-        T_dest.t.y = sensor_pose[1];
-        T_dest.t.z = sensor_pose[2];
-        rm::EulerAngles e;
-        e.roll = sensor_pose[3];
-        e.pitch = sensor_pose[4];
-        e.yaw = sensor_pose[5];
-        T_dest.R = e;
-    } else if(sensor_pose.size() == 7) {
-        // x, y, z, qx, qy, qz, qw
-        T_dest.t.x = sensor_pose[0];
-        T_dest.t.y = sensor_pose[1];
-        T_dest.t.z = sensor_pose[2];
-        T_dest.R.x = sensor_pose[3];
-        T_dest.R.y = sensor_pose[4];
-        T_dest.R.z = sensor_pose[5];
-        T_dest.R.w = sensor_pose[6];
-    }
-
-    // CODE START
     
-    std::cout << std::fixed << std::setprecision(2);
-
-    std::cout << "Analyzing convergence for sample radii: [";
-    for(size_t i=0; i<sample_radius_steps; i++)
+    XmlRpc::XmlRpcValue sensor_poses_xml;
+    if(nh_p.getParam("sensor_poses", sensor_poses_xml))
     {
-        float sample_radius = sample_radius_min + sample_radius_inc * static_cast<float>(i);
-        std::cout << sample_radius;
-        if(i < sample_radius_steps - 1 )
+        sensor_poses.clear();
+        ROS_ASSERT(sensor_poses_xml.getType() == XmlRpc::XmlRpcValue::TypeArray);
+        for (int32_t i = 0; i < sensor_poses_xml.size(); ++i) 
         {
-            std::cout << ", ";
+            ROS_ASSERT(sensor_poses_xml[i].getType() == XmlRpc::XmlRpcValue::TypeArray);
+
+            if(sensor_poses_xml[i].size() == 6)
+            {
+                rm::Transform T;
+                // x, y, z, roll, pitch, yaw
+                T.t.x = static_cast<double>(sensor_poses_xml[i][0]);
+                T.t.y = static_cast<double>(sensor_poses_xml[i][1]);
+                T.t.z = static_cast<double>(sensor_poses_xml[i][2]);
+                rm::EulerAngles e;
+                e.roll = static_cast<double>(sensor_poses_xml[i][3]);
+                e.pitch = static_cast<double>(sensor_poses_xml[i][4]);
+                e.yaw = static_cast<double>(sensor_poses_xml[i][5]);
+                T.R = e;
+                sensor_poses.push_back(T);
+            } else if(sensor_poses_xml[i].size() == 7) {
+                // x, y, z, qx, qy, qz, qw
+                rm::Transform T;
+                T.t.x = static_cast<double>(sensor_poses_xml[i][0]);
+                T.t.y = static_cast<double>(sensor_poses_xml[i][1]);
+                T.t.z = static_cast<double>(sensor_poses_xml[i][2]);
+                T.R.x = static_cast<double>(sensor_poses_xml[i][3]);
+                T.R.y = static_cast<double>(sensor_poses_xml[i][4]);
+                T.R.z = static_cast<double>(sensor_poses_xml[i][5]);
+                T.R.w = static_cast<double>(sensor_poses_xml[i][6]);
+                sensor_poses.push_back(T);
+            }
+
         }
     }
-    std::cout << "]" << std::endl;
-
 
     CubeGridSettings settings;
     settings.dist_between_cubes = 0.3;
@@ -337,145 +343,155 @@ int main(int argc, char** argv)
 
     rmcl::SphereCorrectorEmbree correct(map);
     correct.setTsb(rm::Transform::Identity());
-
-    // return 0;
-
     auto model = rm::vlp16_900();
     model.range.min = 0.0;
 
     correct.setModel(model);
-    
-    using ResultT = rm::Bundle<
-        rm::Ranges<rm::RAM>
-    >;
 
-    ResultT sim_res;
-    sim_res.ranges.resize(model.size());
 
-    rm::Mem<rm::Transform, rm::RAM> T_dest_(1);
-    T_dest_[0] = T_dest;
+    std::cout << std::fixed << std::setprecision(2);
 
-    // simulate the data that would be recorded at destination
-    correct.simulate(T_dest_, sim_res);
-    correct.setInputData(sim_res.ranges);
+    std::cout << "Analyzing convergence for sample radii: [";
+    for(size_t i=0; i<sample_radius_steps; i++)
+    {
+        float sample_radius = sample_radius_min + sample_radius_inc * static_cast<float>(i);
+        std::cout << sample_radius;
+        if(i < sample_radius_steps - 1 )
+        {
+            std::cout << ", ";
+        }
+    }
+    std::cout << "]" << std::endl;
 
-    
 
-    // std::random_device rd;
-    // std::mt19937 e2(seed);
     std::default_random_engine eng{(size_t)sample_seed};
-
 
     std::cout << "ICP convergence rates (#convergences / #poses) dependend on correspondence finding algorithm:" << std::endl;
     std::cout << "1. P2L: Point 2 Plane" << std::endl;
     std::cout << "2. SPC: Simulative Projective Correspondences" << std::endl;
-    std::cout << "| radius |   P2L   |   SPC   |" << std::endl;
-    std::cout << "|--------|---------|---------|" << std::endl;
+    std::cout << "| pose | radius |   P2L   |   SPC   |" << std::endl;
+    std::cout << "|------|--------|---------|---------|" << std::endl;
 
-    std::uniform_real_distribution<float> dist_radius(0.0, 1.0);
-    std::uniform_real_distribution<float> dist_angle(-M_PI, M_PI);
 
-    for(size_t i=0; i<sample_radius_steps; i++)
+    for(size_t spid=0; spid < sensor_poses.size(); spid++)
     {
-        float sample_radius = sample_radius_min + sample_radius_inc * static_cast<float>(i);
-    
-
-        rm::AABB sample_bb;
-        sample_bb.min = rm::Vector::Max();
-        sample_bb.max = rm::Vector::Min();
-        // genererate poses around dest
-        rm::Mem<rm::Transform, rm::RAM> Tbms(Nposes);
-        for(size_t i=0; i<Tbms.size(); i++)
-        {
-            Tbms[i] = T_dest;
-            
-            rm::Vector point_random = {0.0, 0.0, 0.0};
-
-            if(sample_dist_type == 0)
-            { // uniform in circle
-                float radius_sample = sqrt(dist_radius(eng)) * sample_radius;
-                float angle_sample = dist_angle(eng);
-                point_random = rm::Vector{cos(angle_sample), sin(angle_sample), 0.0} * radius_sample;
-            }
-            else if(sample_dist_type == 1)
-            { // uniform in square
-                float rand_x = (dist_radius(eng) - 0.5) * 2.0; // [-1, 1]
-                float rand_y = (dist_radius(eng) - 0.5) * 2.0; // [-1, 1]
-
-                point_random = {rand_x * sample_radius, rand_y * sample_radius, 0.0};
-            }
-
-            Tbms[i].t += point_random;
-            sample_bb.expand(Tbms[i].t);
-        }
-
-        // std::cout << "BB of samples: " << sample_bb << std::endl;
-
-
-        float p2l_rate = 0.0;
-        {
-            rm::Memory<rm::Transform> T_p2l = Tbms;
-            for(size_t i=0; i<Nruns; i++)
-            {
-                {
-                    auto corr_res = correct_embree_p2l(map, sim_res.ranges, model, T_p2l);
-                    T_p2l = rm::multNxN(T_p2l, corr_res.Tdelta);
-                }
-
-                size_t n_converged = 0;
-                for(size_t j=0; j<Nposes; j++)
-                {
-                    float dist = (T_p2l[j].t - T_dest.t).l2norm();
-                    if(dist <= dist_converged)
-                    {
-                        n_converged++;
-                    }
-                }
-                p2l_rate = static_cast<double>(n_converged) / static_cast<double>(Nposes);
-                if(p2l_rate >= 1.0)
-                {
-                    break;
-                }
-            }
-        }
-
-        float spc_rate = 0.0;
-        {
-            rm::Memory<rm::Transform> T_spc = Tbms;
-            for(size_t i=0; i<Nruns; i++)
-            {
-                {
-                    auto corr_res = correct.correct(T_spc);
-                    T_spc = rm::multNxN(T_spc, corr_res.Tdelta);
-                }
-
-                size_t n_converged = 0;
-                for(size_t j=0; j<Nposes; j++)
-                {
-                    float dist = (T_spc[j].t - T_dest.t).l2norm();
-                    if(dist <= dist_converged)
-                    {
-                        n_converged++;
-                    }
-                }
-                spc_rate = static_cast<double>(n_converged) / static_cast<double>(Nposes);
-                if(spc_rate >= 1.0)
-                {
-                    break;
-                }
-            }
-        }
+        rm::Transform T_dest = sensor_poses[spid];
 
         
-        // std::cout << "|--------|---------|--------|" << std::endl;
-        // std::cout << "|   0.00 | 100.00% | 100.0% |" << std::endl;
-        std::cout << "| " << std::setfill(' ') << std::setw(6) << sample_radius << " | " 
-            << std::setfill(' ') << std::setw(6) << p2l_rate * 100.0 << "% | " 
-            << std::setfill(' ') << std::setw(6) << spc_rate * 100.0 << "% |" << std::endl;
-        // std::cout << "- Point 2 Plane (P2L): " << p2l_rate << std::endl;
-        // std::cout << "- Simulative Projective Correspondences (SPC): " << spc_rate << std::endl;
-    
+        using ResultT = rm::Bundle<
+            rm::Ranges<rm::RAM>
+        >;
+
+        ResultT sim_res;
+        sim_res.ranges.resize(model.size());
+
+        rm::Mem<rm::Transform, rm::RAM> T_dest_(1);
+        T_dest_[0] = T_dest;
+
+        // simulate the data that would be recorded at destination
+        correct.simulate(T_dest_, sim_res);
+        correct.setInputData(sim_res.ranges);
+
+        std::uniform_real_distribution<float> dist_radius(0.0, 1.0);
+        std::uniform_real_distribution<float> dist_angle(-M_PI, M_PI);
+
+        for(size_t sid=0; sid<sample_radius_steps; sid++)
+        {
+            float sample_radius = sample_radius_min + sample_radius_inc * static_cast<float>(sid);
+        
+            rm::AABB sample_bb;
+            sample_bb.min = rm::Vector::Max();
+            sample_bb.max = rm::Vector::Min();
+            // genererate poses around dest
+            rm::Mem<rm::Transform, rm::RAM> Tbms(Nposes);
+            for(size_t pid=0; pid<Tbms.size(); pid++)
+            {
+                Tbms[pid] = T_dest;
+                
+                rm::Vector point_random = {0.0, 0.0, 0.0};
+
+                if(sample_dist_type == 0)
+                { // uniform in circle
+                    float radius_sample = sqrt(dist_radius(eng)) * sample_radius;
+                    float angle_sample = dist_angle(eng);
+                    point_random = rm::Vector{cos(angle_sample), sin(angle_sample), 0.0} * radius_sample;
+                }
+                else if(sample_dist_type == 1)
+                { // uniform in square
+                    float rand_x = (dist_radius(eng) - 0.5) * 2.0; // [-1, 1]
+                    float rand_y = (dist_radius(eng) - 0.5) * 2.0; // [-1, 1]
+
+                    point_random = {rand_x * sample_radius, rand_y * sample_radius, 0.0};
+                }
+
+                Tbms[pid].t += point_random;
+                sample_bb.expand(Tbms[pid].t);
+            }
+
+            float p2l_rate = 0.0;
+            {
+                rm::Memory<rm::Transform> T_p2l = Tbms;
+                for(size_t i=0; i<Nruns; i++)
+                {
+                    {
+                        auto corr_res = correct_embree_p2l(map, sim_res.ranges, model, T_p2l);
+                        T_p2l = rm::multNxN(T_p2l, corr_res.Tdelta);
+                    }
+
+                    size_t n_converged = 0;
+                    for(size_t pid=0; pid<Nposes; pid++)
+                    {
+                        float dist = (T_p2l[pid].t - T_dest.t).l2norm();
+                        if(dist <= dist_converged)
+                        {
+                            n_converged++;
+                        }
+                    }
+                    p2l_rate = static_cast<double>(n_converged) / static_cast<double>(Nposes);
+                    if(p2l_rate >= 1.0)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            float spc_rate = 0.0;
+            {
+                rm::Memory<rm::Transform> T_spc = Tbms;
+                for(size_t i=0; i<Nruns; i++)
+                {
+                    {
+                        auto corr_res = correct.correct(T_spc);
+                        T_spc = rm::multNxN(T_spc, corr_res.Tdelta);
+                    }
+
+                    size_t n_converged = 0;
+                    for(size_t pid=0; pid<Nposes; pid++)
+                    {
+                        float dist = (T_spc[pid].t - T_dest.t).l2norm();
+                        if(dist <= dist_converged)
+                        {
+                            n_converged++;
+                        }
+                    }
+                    spc_rate = static_cast<double>(n_converged) / static_cast<double>(Nposes);
+                    if(spc_rate >= 1.0)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            
+            std::cout << "| " << std::setfill(' ') << std::setw(4) << spid + 1 << " | "
+                << std::setfill(' ') << std::setw(6) << sample_radius << " | " 
+                << std::setfill(' ') << std::setw(6) << p2l_rate * 100.0 << "% | " 
+                << std::setfill(' ') << std::setw(6) << spc_rate * 100.0 << "% |" << std::endl;
+        
+        }
     }
+    
+
 
     return 0;
 }
