@@ -351,7 +351,15 @@ int main(int argc, char** argv)
 
     std::cout << std::fixed << std::setprecision(2);
 
-    std::cout << "Analyzing convergence for sample radii: [";
+    std::cout << std::endl;
+    std::cout << "Analyzing convergence for:" << std::endl;
+    if(map_type == 0)
+    {
+        std::cout << "- map: cube grid" << std::endl;
+    } else if(map_type == 1) {
+        std::cout << "- map: avz" << std::endl;
+    }
+    std::cout << "- sample radii: [";
     for(size_t i=0; i<sample_radius_steps; i++)
     {
         float sample_radius = sample_radius_min + sample_radius_inc * static_cast<float>(i);
@@ -363,12 +371,20 @@ int main(int argc, char** argv)
     }
     std::cout << "]" << std::endl;
 
+    std::cout << "- sensor poses: " << std::endl;
+    for(size_t spid = 0; spid < sensor_poses.size(); spid++)
+    {
+        std::cout << spid + 1 << ": " << sensor_poses[spid] << std::endl;
+    }
+    std::cout << std::endl;
+
 
     std::default_random_engine eng{(size_t)sample_seed};
 
     std::cout << "ICP convergence rates (#convergences / #poses) dependend on correspondence finding algorithm:" << std::endl;
     std::cout << "1. P2L: Point 2 Plane" << std::endl;
     std::cout << "2. SPC: Simulative Projective Correspondences" << std::endl;
+    std::cout << std::endl;
     std::cout << "| pose | radius |   P2L   |   SPC   |" << std::endl;
     std::cout << "|------|--------|---------|---------|" << std::endl;
 

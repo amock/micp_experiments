@@ -61,12 +61,12 @@ target_link_libraries(micp_convergence
 )
 
 
-add_executable(avz_pose_publisher src/avz_pose_publisher)
-add_dependencies(avz_pose_publisher
+add_executable(sensor_poses_publisher src/sensor_poses_publisher)
+add_dependencies(sensor_poses_publisher
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
-target_link_libraries(avz_pose_publisher
+target_link_libraries(sensor_poses_publisher
     ${catkin_LIBRARIES}
     ${rmagine_LIBRARIES}
     Eigen3::Eigen

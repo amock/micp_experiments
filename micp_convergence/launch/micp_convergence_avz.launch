@@ -6,4 +6,9 @@
     <rosparam command="load" file="$(find micp_convergence)/config/avz.yaml" />
 </node>
 
+<node pkg="micp_convergence" type="sensor_poses_publisher" name="sensor_poses_publisher">
+    <rosparam command="load" file="$(find micp_convergence)/config/avz.yaml" />
+</node>
+
+
 </launch>
