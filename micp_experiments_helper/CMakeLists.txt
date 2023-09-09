@@ -18,7 +18,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 find_package(rmagine 2.1.1 REQUIRED)
-
 find_package(Eigen3 REQUIRED)
 
 
@@ -31,20 +30,17 @@ catkin_package(
 #  DEPENDS system_lib
 )
 
-
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${rmagine_INCLUDE_DIRS}
 )
 
-
 add_executable(leaf_odom_to_root src/leaf_odom_to_root.cpp)
 target_link_libraries(leaf_odom_to_root
   ${catkin_LIBRARIES}
   ${rmagine_LIBRARIES}
 )
-
 
 add_executable(change_imu_frame src/change_imu_frame.cpp)
 target_link_libraries(change_imu_frame
@@ -58,5 +54,4 @@ target_link_libraries(fuse_gps_imu
   ${rmagine_LIBRARIES}
   Eigen3::Eigen
 )
-
 

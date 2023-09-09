@@ -1,0 +1,14 @@
+map: 1
+
+sensor_pose: [5.47, -10.6, 0.0, 0.0, 0.0, 0.0]
+sampling:
+  distribution: 1
+  seed: 42
+  radius_min: 0.0
+  radius_inc: 0.1
+  radius_steps: 11
+  poses: 100
+optimizer:
+  iterations: 50
+  dist_converged: 0.01
+
