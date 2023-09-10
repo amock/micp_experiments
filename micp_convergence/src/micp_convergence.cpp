@@ -266,6 +266,7 @@ int main(int argc, char** argv)
     double sample_radius_inc = 0.1;
     int sample_radius_steps = 11;
     int Nposes = 100;
+    int skip_poses = 0;
 
     int Nruns = 50;
     double dist_converged = 0.01;
@@ -290,6 +291,8 @@ int main(int argc, char** argv)
     nh_p.param<int>("sampling/poses", Nposes, 100);
     nh_p.param<int>("optimizer/iterations", Nruns, 50);
     nh_p.param<double>("optimizer/dist_converged", dist_converged, 0.01);
+
+    nh_p.param<int>("skip_poses", skip_poses, 0);
 
     nh_p.param<std::string>("evaluation_file", evalfile_name, "micp_convergence");
     
@@ -413,13 +416,20 @@ int main(int argc, char** argv)
 
     for(size_t spid=0; spid < sensor_poses.size(); spid++)
     {
+        if(spid < skip_poses)
+        {
+            continue;
+        }
+
+
+
+        std::cout << "POSE " << spid << std::endl;
         std::stringstream ss;
         ss << evalfile_name << "_" << spid << ".csv";
         std::ofstream evalfile;
         evalfile.open(ss.str());
         evalfile << std::fixed << std::setprecision(8);
         evalfile << "sample radius, P2L, SPC" << std::endl;
-
 
         rm::Transform T_dest = sensor_poses[spid];
         
@@ -440,9 +450,13 @@ int main(int argc, char** argv)
         std::uniform_real_distribution<float> dist_radius(0.0, 1.0);
         std::uniform_real_distribution<float> dist_angle(-M_PI, M_PI);
 
-        for(size_t sid=0; sid<sample_radius_steps; sid++)
+        for(size_t rid=0; rid < sample_radius_steps; rid++)
         {
-            float sample_radius = sample_radius_min + sample_radius_inc * static_cast<float>(sid);
+            if(!ros::ok())
+            {
+                return 0;
+            }
+            float sample_radius = sample_radius_min + sample_radius_inc * static_cast<float>(rid);
         
             rm::AABB sample_bb;
             sample_bb.min = rm::Vector::Max();
@@ -528,13 +542,12 @@ int main(int argc, char** argv)
             }
 
             
-            std::cout << "| " << std::setfill(' ') << std::setw(4) << spid + 1 << " | "
+            std::cout << "| " << std::setfill(' ') << std::setw(4) << spid << " | "
                 << std::setfill(' ') << std::setw(6) << sample_radius << " | " 
                 << std::setfill(' ') << std::setw(6) << p2l_rate * 100.0 << "% | " 
                 << std::setfill(' ') << std::setw(6) << spc_rate * 100.0 << "% |" << std::endl;
         
-            evalfile << spid+1 << ", " 
-                     << sample_radius << ", " 
+            evalfile << sample_radius << ", " 
                      << p2l_rate << ", " 
                      << spc_rate << std::endl;
 

@@ -35,7 +35,7 @@ find_package(Eigen3 REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS 
-    include
+    # include
 #  LIBRARIES amock_tf_tools
   CATKIN_DEPENDS
     ${ROS_DEPS}

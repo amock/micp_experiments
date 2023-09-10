@@ -1,4 +1,5 @@
 map: 1
+skip_poses: 0
 sensor_poses:
   - [5.5,  -14.0, 0.5, 0.0, 0.0, 0.0] # 0 (top - right)
   - [5.5,  -10.6, 0.5, 0.0, 0.0, 0.0] # 1 (top)
@@ -21,11 +22,11 @@ sampling:
   distribution: 0
   seed: 42
   radius_min: 0.0
-  radius_inc: 0.02
-  radius_steps: 101
-  poses: 1000
+  radius_inc: 0.05
+  radius_steps: 41
+  poses: 100
 optimizer:
   iterations: 50
   dist_converged: 0.01
-evaluation_file: micp_convergence_avz
+evaluation_file: micp_convergence_avz_test
 
