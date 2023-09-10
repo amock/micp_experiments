@@ -266,6 +266,14 @@ HoursMinutesSeconds to_time(double seconds)
     return ret;
 }
 
+struct Metrics {
+    float rate = 0.0;
+    size_t converged = 0;
+    float err_notconv = 0.0;
+    float err_tot = 0.0;
+};
+
+
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "micp_convergence");
@@ -460,9 +468,11 @@ int main(int argc, char** argv)
 
         std::cout << std::endl;
 
-        std::cout << "| radius | P2L conv (%) | P2L err (cm) | SPC conv (%) | SPC err (cm) |" << std::endl;
-        std::cout << "|--------|--------------|--------------|--------------|--------------|" << std::endl;
+        std::cout << "|          |                P2L                |                SPC                |" << std::endl;
+        std::cout << "|  radius  | rate conv | err -conv |  err tot  | rate conv | err -conv |  err tot  |" << std::endl;
+        std::cout << "|----------|-----------|-----------|-----------|-----------|-----------|-----------|" << std::endl;
         
+
         // |   100.00%      |
         // |----------------|
         
@@ -471,7 +481,7 @@ int main(int argc, char** argv)
         std::ofstream evalfile;
         evalfile.open(ss.str());
         evalfile << std::fixed << std::setprecision(8);
-        evalfile << "Radius, P2L conv, P2L err, SPC conv, SPC err" << std::endl;
+        evalfile << "Radius, P2L conv, P2L err -conv, P2L err tot, SPC conv, SPC err -conv, SPC err tot" << std::endl;
 
         sw();
 
@@ -534,8 +544,8 @@ int main(int argc, char** argv)
                 sample_bb.expand(Tbms[pid].t);
             }
 
-            float p2l_rate = 0.0;
-            float p2l_pose_error = 0.0;
+            
+            Metrics p2l;
             {
                 rm::Memory<rm::Transform> T_p2l = Tbms;
                 for(size_t i=0; i<Nruns; i++)
@@ -546,28 +556,49 @@ int main(int argc, char** argv)
                     }
 
                     size_t n_converged = 0;
-                    float p2l_pose_error_inner = 0.0;
+                    float err_notconv = 0.0;
+                    float err_tot = 0.0;
                     for(size_t pid=0; pid<Nposes; pid++)
                     {
                         float dist = (T_p2l[pid].t - T_dest.t).l2norm();
-                        p2l_pose_error_inner += dist;
+                        err_tot += dist;
                         if(dist <= dist_converged)
                         {
                             n_converged++;
+                        } else {
+                            err_notconv += dist;
                         }
                     }
-                    p2l_rate = static_cast<double>(n_converged) / static_cast<double>(Nposes);
-                    p2l_pose_error = p2l_pose_error_inner / static_cast<float>(Nposes);
-                    // if(n_converged == Nposes)
-                    // {
-                    //     break;
-                    // }
+
+                    Metrics met;
+                    {
+                        for(size_t pid=0; pid<Nposes; pid++)
+                        {
+                            float dist = (T_p2l[pid].t - T_dest.t).l2norm();
+                            met.err_tot += dist;
+                            if(dist <= dist_converged)
+                            {
+                                met.converged++;
+                            } else {
+                                met.err_notconv += dist;
+                            }
+                        }
+                        
+                        p2l.rate = static_cast<double>(met.converged) / static_cast<double>(Nposes);
+                        p2l.converged = met.converged;
+                        p2l.err_tot = met.err_tot / static_cast<float>(Nposes);
+
+                        if(met.converged > 0)
+                        {
+                            p2l.err_notconv = met.err_notconv / static_cast<float>(met.converged);
+                        } else {
+                            p2l.err_notconv = -1.0;
+                        }
+                    }
                 }
             }
             
-
-            float spc_rate = 0.0;
-            float spc_pose_error = 0.0;
+            Metrics spc;
             {
                 rm::Memory<rm::Transform> T_spc = Tbms;
                 for(size_t i=0; i<Nruns; i++)
@@ -577,55 +608,64 @@ int main(int argc, char** argv)
                         T_spc = rm::multNxN(T_spc, corr_res.Tdelta);
                     }
 
-                    float spc_pose_error_inner = 0.0;
-                    size_t n_converged = 0;
-                    for(size_t pid=0; pid<Nposes; pid++)
+                    Metrics met;
                     {
-                        float dist = (T_spc[pid].t - T_dest.t).l2norm();
-                        spc_pose_error_inner += dist;
-                        if(dist <= dist_converged)
+                        for(size_t pid=0; pid<Nposes; pid++)
                         {
-                            n_converged++;
+                            float dist = (T_spc[pid].t - T_dest.t).l2norm();
+                            met.err_tot += dist;
+                            if(dist <= dist_converged)
+                            {
+                                met.converged++;
+                            } else {
+                                met.err_notconv += dist;
+                            }
+                        }
+                        
+                        spc.rate = static_cast<double>(met.converged) / static_cast<double>(Nposes);
+                        spc.converged = met.converged;
+                        spc.err_tot = met.err_tot / static_cast<float>(Nposes);
+
+                        if(met.converged > 0)
+                        {
+                            spc.err_notconv = met.err_notconv / static_cast<float>(met.converged);
+                        } else {
+                            spc.err_notconv = -1.0;
                         }
                     }
-                    spc_rate = static_cast<double>(n_converged) / static_cast<double>(Nposes);
-                    spc_pose_error = spc_pose_error_inner / static_cast<float>(Nposes);
-                    // if(n_converged == Nposes)
-                    // {
-                    //     break;
-                    // }
+                    
                 }
             }
             
             double el_inner = sw_inner();
-            runtime_per_iter = std::max(runtime_per_iter, el_inner);
-
-
-
-            
+            runtime_per_iter = std::max(runtime_per_iter, el_inner);            
 
             std::cout << "| " 
-                << std::setfill(' ') << std::setw(6) << sample_radius << " | " 
-                << std::setfill(' ') << std::setw(11) << p2l_rate * 100.0 << "% | " 
-                << std::setfill(' ') << std::setw(10) << p2l_pose_error * 100.0 << "cm | " 
-                << std::setfill(' ') << std::setw(11) << spc_rate * 100.0 << "% | "
-                << std::setfill(' ') << std::setw(10) << spc_pose_error * 100.0 << "cm | ";
+                << std::setfill(' ') << std::setw(6) << sample_radius * 100.0 << "cm | " 
+                << std::setfill(' ') << std::setw(8) << p2l.rate * 100.0 << "% | " 
+                << std::setfill(' ') << std::setw(7) << p2l.err_notconv * 100.0 << "cm | " 
+                << std::setfill(' ') << std::setw(7) << p2l.err_tot * 100.0 << "cm | " 
+                << std::setfill(' ') << std::setw(8) << spc.rate * 100.0 << "% | "
+                << std::setfill(' ') << std::setw(7) << spc.err_notconv * 100.0 << "cm | "
+                << std::setfill(' ') << std::setw(7) << spc.err_tot * 100.0 << "cm | ";
 
 
             {
                 double time_end_of_pose = runtime_per_iter * (sample_radius_steps - rid);
                 double time_end_of_experiment = runtime_per_iter * static_cast<double>(Nruns) * static_cast<double>(sensor_poses.size() - spid + 1) + time_end_of_pose;
-                std::cout << " time left: " << to_time(time_end_of_pose) << " for this pose, ";
-                std::cout << to_time(time_end_of_experiment) << " to end of experiment";
+                std::cout << " TL: " << to_time(time_end_of_pose) << " for pose, ";
+                std::cout << to_time(time_end_of_experiment) << " to end";
             }
             std::cout << std::endl;
             
         
             evalfile << sample_radius << ", " 
-                     << p2l_rate << ", " 
-                     << p2l_pose_error << ", "
-                     << spc_rate << ", "
-                     << spc_pose_error << std::endl;
+                     << p2l.rate << ", " 
+                     << p2l.err_notconv << ", "
+                     << p2l.err_tot << ", "
+                     << spc.rate << ", "
+                     << spc.err_notconv << ", "
+                     << spc.err_tot << std::endl;
             
         }
         double el = sw();

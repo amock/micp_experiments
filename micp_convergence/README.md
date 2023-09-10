@@ -8,7 +8,11 @@ Wall thickness:
 - supporting wall: 22.8cm
 - normal wall: 14.0cm
 
+![AVZ Poses](dat/avz_poses.png)
+
+
 Pose format: `[x, y, z, roll, pitch, yaw]` or `[x, y, z, qx, qy, qz, qw]`.
+
 ```
 sensor_poses:
   - [5.5,  -14.0, 0.5, 0.0, 0.0, 0.0] # 0 (top - right)
@@ -30,4 +34,3 @@ sensor_poses:
   - [-4.4, -13.1, 0.5, 0.0, 0.0, 0.0] # 17 (bottom - right)
 ```
 
-![AVZ Poses](dat/avz_poses.png)
