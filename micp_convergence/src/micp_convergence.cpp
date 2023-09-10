@@ -588,11 +588,11 @@ int main(int argc, char** argv)
                         p2l.converged = met.converged;
                         p2l.err_tot = met.err_tot / static_cast<float>(Nposes);
 
-                        if(met.converged > 0)
+                        if(met.converged < Nposes)
                         {
-                            p2l.err_notconv = met.err_notconv / static_cast<float>(met.converged);
+                            p2l.err_notconv = met.err_notconv / static_cast<float>(Nposes - met.converged);
                         } else {
-                            p2l.err_notconv = -1.0;
+                            p2l.err_notconv = 0.0;
                         }
                     }
                 }
@@ -626,11 +626,11 @@ int main(int argc, char** argv)
                         spc.converged = met.converged;
                         spc.err_tot = met.err_tot / static_cast<float>(Nposes);
 
-                        if(met.converged > 0)
+                        if(met.converged < Nposes)
                         {
-                            spc.err_notconv = met.err_notconv / static_cast<float>(met.converged);
+                            spc.err_notconv = met.err_notconv / static_cast<float>(Nposes - met.converged);
                         } else {
-                            spc.err_notconv = -1.0;
+                            spc.err_notconv = 0.0;
                         }
                     }
                     
