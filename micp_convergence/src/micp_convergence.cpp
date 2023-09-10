@@ -558,10 +558,10 @@ int main(int argc, char** argv)
                     }
                     p2l_rate = static_cast<double>(n_converged) / static_cast<double>(Nposes);
                     p2l_pose_error = p2l_pose_error_inner / static_cast<float>(Nposes);
-                    if(n_converged == Nposes)
-                    {
-                        break;
-                    }
+                    // if(n_converged == Nposes)
+                    // {
+                    //     break;
+                    // }
                 }
             }
             
@@ -590,10 +590,10 @@ int main(int argc, char** argv)
                     }
                     spc_rate = static_cast<double>(n_converged) / static_cast<double>(Nposes);
                     spc_pose_error = spc_pose_error_inner / static_cast<float>(Nposes);
-                    if(n_converged == Nposes)
-                    {
-                        break;
-                    }
+                    // if(n_converged == Nposes)
+                    // {
+                    //     break;
+                    // }
                 }
             }
             

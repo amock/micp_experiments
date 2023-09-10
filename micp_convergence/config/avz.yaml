@@ -27,6 +27,8 @@ sampling:
   poses: 512
 optimizer:
   iterations: 50
-  dist_converged: 0.01
+  # since walls are either 0.23m or 0.14m thick
+  # for false convergence the must be an error of at least 0.14m. So:
+  dist_converged: 0.05 
 evaluation_file: micp_convergence_avz
 
