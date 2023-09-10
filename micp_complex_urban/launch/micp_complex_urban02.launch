@@ -1,7 +1,18 @@
 <?xml version="1.0" ?>
 <launch>
 
+<arg name="gui" default="true" />
+<arg name="bag" default="/home/amock/datasets/complex_urban/bags/urban02.bag" />
+<arg name="mesh_file" default="/home/amock/datasets/complex_urban/meshes/urban02/reduced_mesh_75.ply" />
+<arg name="rate" default="1.0" />
+
+# play bag file
+<node pkg="rosbag" type="play" name="rosbag" args="$(arg bag) -r $(arg rate) --pause" output="screen" />
+
+# URDF like
 <node pkg="micp_complex_urban" type="car_static_transforms" name="car_static_transforms" output="screen">
     <rosparam command="load" file="$(find micp_complex_urban)/config/urban02.yaml" />
 </node>
+
+
 </launch>
