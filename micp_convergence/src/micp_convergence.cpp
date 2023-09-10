@@ -232,8 +232,6 @@ rmcl::CorrectionResults<rm::RAM> correct_embree_p2l(
         }
     }
 
-    
-
     return res;
 }
 
@@ -247,7 +245,7 @@ struct HoursMinutesSeconds
 
 std::ostream& operator<<(std::ostream& os, const HoursMinutesSeconds& dt)
 {
-    os << dt.hours << "h, " << dt.minutes << "m, " << dt.seconds << "s";
+    os << dt.days << "d, " << dt.hours << "h, " << dt.minutes << "m, " << dt.seconds << "s";
     return os;
 }
 
