@@ -607,9 +607,9 @@ int main(int argc, char** argv)
             std::cout << "| " 
                 << std::setfill(' ') << std::setw(6) << sample_radius << " | " 
                 << std::setfill(' ') << std::setw(11) << p2l_rate * 100.0 << "% | " 
-                << std::setfill(' ') << std::setw(11) << p2l_pose_error * 100.0 << "cm | " 
+                << std::setfill(' ') << std::setw(10) << p2l_pose_error * 100.0 << "cm | " 
                 << std::setfill(' ') << std::setw(11) << spc_rate * 100.0 << "% | "
-                << std::setfill(' ') << std::setw(11) << spc_pose_error * 100.0 << "cm | ";
+                << std::setfill(' ') << std::setw(10) << spc_pose_error * 100.0 << "cm | ";
 
 
             {
