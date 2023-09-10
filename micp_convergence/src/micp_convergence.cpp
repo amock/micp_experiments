@@ -452,19 +452,19 @@ int main(int argc, char** argv)
             continue;
         }
         
-
         std::cout << "POSE " << spid << ". " << spid + 1 << "/" << sensor_poses.size() << " poses. ";
-
-        
-        std::cout << "| radius |   P2L conv (%) | P2L err (cm) | SPC conv (%) | SPC err (cm) |" << std::endl;
-        std::cout << "|--------|----------------|--------------|--------------|--------------|" << std::endl;
-
         if(spid > 0)
         {
             std::cout << "Approx time: " << to_time(runtime_per_sensor_pose) << " per pose. ";
             std::cout << to_time(runtime_per_sensor_pose * (sensor_poses.size() - spid)) << " left. ";
+            
         }
+
         std::cout << std::endl;
+
+        std::cout << "| radius |   P2L conv (%) | P2L err (cm) | SPC conv (%) | SPC err (cm) |" << std::endl;
+        std::cout << "|--------|----------------|--------------|--------------|--------------|" << std::endl;
+        
         
         std::stringstream ss;
         ss << evalfile_name << "_" << spid << ".csv";
