@@ -471,8 +471,7 @@ int main(int argc, char** argv)
         std::ofstream evalfile;
         evalfile.open(ss.str());
         evalfile << std::fixed << std::setprecision(8);
-        evalfile << "sample radius, P2L, SPC" << std::endl;
-
+        evalfile << "Radius, P2L conv, P2L err, SPC conv, SPC err" << std::endl;
 
         sw();
 
