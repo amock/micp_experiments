@@ -411,25 +411,51 @@ int main(int argc, char** argv)
     std::cout << "|------|--------|---------|---------|" << std::endl;
 
 
-    
-     
+    rm::StopWatch sw;
+    double runtime_per_sensor_pose = 100.0; // seconds
 
+    
     for(size_t spid=0; spid < sensor_poses.size(); spid++)
     {
         if(spid < skip_poses)
         {
             continue;
         }
+        
 
-
-
-        std::cout << "POSE " << spid << std::endl;
+        std::cout << "POSE " << spid << ". " << spid + 1 / sensor_poses.size() << " poses. ";
+        if(spid > 0)
+        {
+            std::cout << "Approx time: ";
+            {
+                int runtime_seconds = runtime_per_sensor_pose;
+                int runtime_minutes = runtime_seconds / 60;
+                runtime_seconds = runtime_seconds % 60;
+                int runtime_hours = runtime_minutes / 60;
+                runtime_minutes = runtime_minutes % 60;
+                std::cout << runtime_hours << "h " << runtime_minutes << "m " << runtime_seconds << "s per pose. ";
+            }
+            
+            {
+                int runtime_seconds = runtime_per_sensor_pose * (sensor_poses.size() - spid);
+                int runtime_minutes = runtime_seconds / 60;
+                runtime_seconds = runtime_seconds % 60;
+                int runtime_hours = runtime_minutes / 60;
+                runtime_minutes = runtime_minutes % 60;
+                std::cout << "Approx time: " << runtime_hours << "h " << runtime_minutes << "m " << runtime_seconds << "s left. ";
+            }
+        }
+        std::cout << std::endl;
+        
         std::stringstream ss;
         ss << evalfile_name << "_" << spid << ".csv";
         std::ofstream evalfile;
         evalfile.open(ss.str());
         evalfile << std::fixed << std::setprecision(8);
         evalfile << "sample radius, P2L, SPC" << std::endl;
+
+
+        sw();
 
         rm::Transform T_dest = sensor_poses[spid];
         
@@ -450,7 +476,7 @@ int main(int argc, char** argv)
         std::uniform_real_distribution<float> dist_radius(0.0, 1.0);
         std::uniform_real_distribution<float> dist_angle(-M_PI, M_PI);
 
-        for(size_t rid=0; rid < sample_radius_steps; rid++)
+        for(size_t rid = 0; rid < sample_radius_steps; rid++)
         {
             if(!ros::ok())
             {
@@ -541,6 +567,8 @@ int main(int argc, char** argv)
                 }
             }
 
+            double el = sw();
+            runtime_per_sensor_pose = std::max(runtime_per_sensor_pose, el);
             
             std::cout << "| " << std::setfill(' ') << std::setw(4) << spid << " | "
                 << std::setfill(' ') << std::setw(6) << sample_radius << " | " 
@@ -550,8 +578,8 @@ int main(int argc, char** argv)
             evalfile << sample_radius << ", " 
                      << p2l_rate << ", " 
                      << spc_rate << std::endl;
-
         }
+        evalfile.close();
     }
     
 
