@@ -24,7 +24,7 @@ sampling:
   radius_min: 0.0
   radius_inc: 0.05
   radius_steps: 41
-  poses: 100
+  poses: 512
 optimizer:
   iterations: 50
   dist_converged: 0.01
