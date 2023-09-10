@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.2)
-project(micp_convergence)
+project(micp_complex_urban)
 
 add_compile_options(-std=c++17)
 set(CMAKE_CXX_STANDARD 17)
@@ -47,26 +47,12 @@ include_directories(
     ${rmagine_INCLUDE_DIRS}    
 )
 
-message(WARNING "LIBS: ${catkin_LIBRARIES}")
-
-add_executable(micp_convergence src/micp_convergence.cpp)
-add_dependencies(micp_convergence
+add_executable(car_static_transforms src/car_static_transforms.cpp)
+add_dependencies(car_static_transforms
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
-target_link_libraries(micp_convergence
-    ${catkin_LIBRARIES}
-    ${rmagine_LIBRARIES}
-    Eigen3::Eigen
-)
-
-
-add_executable(sensor_poses_publisher src/sensor_poses_publisher.cpp)
-add_dependencies(sensor_poses_publisher
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${catkin_EXPORTED_TARGETS}
-)
-target_link_libraries(sensor_poses_publisher
+target_link_libraries(car_static_transforms
     ${catkin_LIBRARIES}
     ${rmagine_LIBRARIES}
     Eigen3::Eigen

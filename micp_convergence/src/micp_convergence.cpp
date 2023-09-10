@@ -237,6 +237,36 @@ rmcl::CorrectionResults<rm::RAM> correct_embree_p2l(
     return res;
 }
 
+struct HoursMinutesSeconds
+{
+    int days;
+    int hours;
+    int minutes;
+    int seconds;
+};
+
+std::ostream& operator<<(std::ostream& os, const HoursMinutesSeconds& dt)
+{
+    os << dt.hours << "h, " << dt.minutes << "m, " << dt.seconds << "s";
+    return os;
+}
+
+HoursMinutesSeconds to_time(double seconds)
+{
+    HoursMinutesSeconds ret;
+    ret.seconds = seconds;
+    
+    ret.minutes = ret.seconds / 60;
+    ret.seconds = ret.seconds % 60;
+    
+    ret.hours = ret.minutes / 60;
+    ret.minutes = ret.minutes % 60;
+    
+    ret.days = ret.hours / 24;
+    ret.hours = ret.hours % 24;
+    
+    return ret;
+}
 
 int main(int argc, char** argv)
 {
@@ -407,12 +437,12 @@ int main(int argc, char** argv)
     std::cout << "1. P2L: Point 2 Plane" << std::endl;
     std::cout << "2. SPC: Simulative Projective Correspondences" << std::endl;
     std::cout << std::endl;
-    std::cout << "| pose | radius |   P2L   |   SPC   |" << std::endl;
-    std::cout << "|------|--------|---------|---------|" << std::endl;
+    
 
 
     rm::StopWatch sw;
-    double runtime_per_sensor_pose = 100.0; // seconds
+    double runtime_per_sensor_pose = 0.0; // seconds
+    double runtime_per_iter = 0.0;
 
     
     for(size_t spid=0; spid < sensor_poses.size(); spid++)
@@ -424,26 +454,15 @@ int main(int argc, char** argv)
         
 
         std::cout << "POSE " << spid << ". " << spid + 1 << "/" << sensor_poses.size() << " poses. ";
+
+        
+        std::cout << "| radius |   P2L conv rate (%) |  SPC conv rate (%) |  P2L mean error (m) | SPC mean error (m) |" << std::endl;
+        std::cout << "|--------|---------|---------|" << std::endl;
+
         if(spid > 0)
         {
-            std::cout << "Approx time: ";
-            {
-                int runtime_seconds = runtime_per_sensor_pose;
-                int runtime_minutes = runtime_seconds / 60;
-                runtime_seconds = runtime_seconds % 60;
-                int runtime_hours = runtime_minutes / 60;
-                runtime_minutes = runtime_minutes % 60;
-                std::cout << runtime_hours << "h " << runtime_minutes << "m " << runtime_seconds << "s per pose. ";
-            }
-            
-            {
-                int runtime_seconds = runtime_per_sensor_pose * (sensor_poses.size() - spid);
-                int runtime_minutes = runtime_seconds / 60;
-                runtime_seconds = runtime_seconds % 60;
-                int runtime_hours = runtime_minutes / 60;
-                runtime_minutes = runtime_minutes % 60;
-                std::cout << "Approx time: " << runtime_hours << "h " << runtime_minutes << "m " << runtime_seconds << "s left. ";
-            }
+            std::cout << "Approx time: " << to_time(runtime_per_sensor_pose) << " per pose. ";
+            std::cout << to_time(runtime_per_sensor_pose * (sensor_poses.size() - spid)) << " left. ";
         }
         std::cout << std::endl;
         
@@ -482,6 +501,9 @@ int main(int argc, char** argv)
             {
                 return 0;
             }
+
+            rm::StopWatch sw_inner;
+
             float sample_radius = sample_radius_min + sample_radius_inc * static_cast<float>(rid);
         
             rm::AABB sample_bb;
@@ -514,6 +536,7 @@ int main(int argc, char** argv)
             }
 
             float p2l_rate = 0.0;
+            float p2l_pose_error = 0.0;
             {
                 rm::Memory<rm::Transform> T_p2l = Tbms;
                 for(size_t i=0; i<Nruns; i++)
@@ -527,6 +550,7 @@ int main(int argc, char** argv)
                     for(size_t pid=0; pid<Nposes; pid++)
                     {
                         float dist = (T_p2l[pid].t - T_dest.t).l2norm();
+                        p2l_pose_error += dist;
                         if(dist <= dist_converged)
                         {
                             n_converged++;
@@ -539,8 +563,10 @@ int main(int argc, char** argv)
                     }
                 }
             }
+            p2l_pose_error /= static_cast<float>(Nposes);
 
             float spc_rate = 0.0;
+            float spc_pose_error = 0.0;
             {
                 rm::Memory<rm::Transform> T_spc = Tbms;
                 for(size_t i=0; i<Nruns; i++)
@@ -554,6 +580,7 @@ int main(int argc, char** argv)
                     for(size_t pid=0; pid<Nposes; pid++)
                     {
                         float dist = (T_spc[pid].t - T_dest.t).l2norm();
+                        spc_pose_error += dist;
                         if(dist <= dist_converged)
                         {
                             n_converged++;
@@ -566,19 +593,42 @@ int main(int argc, char** argv)
                     }
                 }
             }
-
-            double el = sw();
-            runtime_per_sensor_pose = std::max(runtime_per_sensor_pose, el);
+            spc_pose_error /= static_cast<float>(Nposes);
             
-            std::cout << "| " << std::setfill(' ') << std::setw(4) << spid << " | "
+            double el_inner = sw_inner();
+            runtime_per_iter = std::max(runtime_per_iter, el_inner);
+
+
+
+            
+
+            std::cout << "| " 
                 << std::setfill(' ') << std::setw(6) << sample_radius << " | " 
                 << std::setfill(' ') << std::setw(6) << p2l_rate * 100.0 << "% | " 
-                << std::setfill(' ') << std::setw(6) << spc_rate * 100.0 << "% |" << std::endl;
+                << std::setfill(' ') << std::setw(6) << p2l_pose_error << "m | " 
+                << std::setfill(' ') << std::setw(6) << spc_rate * 100.0 << "% | "
+                << std::setfill(' ') << std::setw(6) << spc_pose_error * 100.0 << "% | ";
+
+
+            {
+                double time_end_of_pose = runtime_per_iter * (sample_radius_steps - rid);
+                double time_end_of_experiment = runtime_per_iter * static_cast<double>(Nruns) * static_cast<double>(sensor_poses.size() - spid + 1) + time_end_of_pose;
+                std::cout << " time left: " << to_time(time_end_of_pose) << " for this pose, ";
+                std::cout << to_time(time_end_of_experiment) << " to end of experiment";
+            }
+            std::cout << std::endl;
+            
         
             evalfile << sample_radius << ", " 
                      << p2l_rate << ", " 
-                     << spc_rate << std::endl;
+                     << p2l_pose_error << ", "
+                     << spc_rate << ", "
+                     << spc_pose_error << std::endl;
+            
         }
+        double el = sw();
+        runtime_per_sensor_pose = std::max(runtime_per_sensor_pose, el);
+
         evalfile.close();
     }
     

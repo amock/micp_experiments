@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<launch>
+
+<node pkg="micp_complex_urban" type="car_static_transforms" name="car_static_transforms" output="screen">
+    <rosparam command="load" file="$(find micp_complex_urban)/config/urban02.yaml" />
+</node>
+</launch>

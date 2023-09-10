@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>micp_complex_urban</name>
+  <version>0.0.0</version>
+  <description>The micp_complex_urban package</description>
+
+  <maintainer email="amock@uos.de">amock</maintainer>
+
+  <license>BSD-3</license>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <build_depend>roscpp</build_depend>
+  <build_depend>tf2_ros</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>rmcl</build_depend>
+  
+  
+  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>tf2_ros</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <build_export_depend>sensor_msgs</build_export_depend>
+  <build_export_depend>geometry_msgs</build_export_depend>
+  <build_export_depend>rmcl</build_export_depend>
+  
+  
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>rmcl</exec_depend>
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+  </export>
+</package>

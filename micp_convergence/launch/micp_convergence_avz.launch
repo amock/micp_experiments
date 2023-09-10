@@ -1,5 +1,4 @@
 <?xml version="1.0" ?>
-
 <launch>
 
 <node pkg="micp_convergence" type="micp_convergence" name="micp_convergence" output="screen">
