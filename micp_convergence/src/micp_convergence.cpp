@@ -549,23 +549,25 @@ int main(int argc, char** argv)
                     }
 
                     size_t n_converged = 0;
+                    float p2l_pose_error_inner = 0.0;
                     for(size_t pid=0; pid<Nposes; pid++)
                     {
                         float dist = (T_p2l[pid].t - T_dest.t).l2norm();
-                        p2l_pose_error += dist;
+                        p2l_pose_error_inner += dist;
                         if(dist <= dist_converged)
                         {
                             n_converged++;
                         }
                     }
                     p2l_rate = static_cast<double>(n_converged) / static_cast<double>(Nposes);
-                    if(p2l_rate >= 1.0)
+                    p2l_pose_error = p2l_pose_error_inner / static_cast<float>(Nposes);
+                    if(n_converged == Nposes)
                     {
                         break;
                     }
                 }
             }
-            p2l_pose_error /= static_cast<float>(Nposes);
+            
 
             float spc_rate = 0.0;
             float spc_pose_error = 0.0;
@@ -578,24 +580,25 @@ int main(int argc, char** argv)
                         T_spc = rm::multNxN(T_spc, corr_res.Tdelta);
                     }
 
+                    float spc_pose_error_inner = 0.0;
                     size_t n_converged = 0;
                     for(size_t pid=0; pid<Nposes; pid++)
                     {
                         float dist = (T_spc[pid].t - T_dest.t).l2norm();
-                        spc_pose_error += dist;
+                        spc_pose_error_inner += dist;
                         if(dist <= dist_converged)
                         {
                             n_converged++;
                         }
                     }
                     spc_rate = static_cast<double>(n_converged) / static_cast<double>(Nposes);
-                    if(spc_rate >= 1.0)
+                    spc_pose_error = spc_pose_error_inner / static_cast<float>(Nposes);
+                    if(n_converged == Nposes)
                     {
                         break;
                     }
                 }
             }
-            spc_pose_error /= static_cast<float>(Nposes);
             
             double el_inner = sw_inner();
             runtime_per_iter = std::max(runtime_per_iter, el_inner);
