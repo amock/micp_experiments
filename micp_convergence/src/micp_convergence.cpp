@@ -456,8 +456,8 @@ int main(int argc, char** argv)
         std::cout << "POSE " << spid << ". " << spid + 1 << "/" << sensor_poses.size() << " poses. ";
 
         
-        std::cout << "| radius |   P2L conv rate (%) |  SPC conv rate (%) |  P2L mean error (m) | SPC mean error (m) |" << std::endl;
-        std::cout << "|--------|---------|---------|" << std::endl;
+        std::cout << "| radius |   P2L conv (%) | P2L err (cm) | SPC conv (%) | SPC err (cm) |" << std::endl;
+        std::cout << "|--------|----------------|--------------|--------------|--------------|" << std::endl;
 
         if(spid > 0)
         {
@@ -604,10 +604,10 @@ int main(int argc, char** argv)
 
             std::cout << "| " 
                 << std::setfill(' ') << std::setw(6) << sample_radius << " | " 
-                << std::setfill(' ') << std::setw(6) << p2l_rate * 100.0 << "% | " 
-                << std::setfill(' ') << std::setw(6) << p2l_pose_error << "m | " 
-                << std::setfill(' ') << std::setw(6) << spc_rate * 100.0 << "% | "
-                << std::setfill(' ') << std::setw(6) << spc_pose_error * 100.0 << "% | ";
+                << std::setfill(' ') << std::setw(8) << p2l_rate * 100.0 << "% | " 
+                << std::setfill(' ') << std::setw(8) << p2l_pose_error * 100.0 << "cm | " 
+                << std::setfill(' ') << std::setw(8) << spc_rate * 100.0 << "% | "
+                << std::setfill(' ') << std::setw(8) << spc_pose_error * 100.0 << "cm | ";
 
 
             {
