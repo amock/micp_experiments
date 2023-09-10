@@ -28,5 +28,5 @@ sampling:
 optimizer:
   iterations: 50
   dist_converged: 0.01
-evaluation_file: micp_convergence_avz_test
+evaluation_file: micp_convergence_avz
 
