@@ -423,7 +423,7 @@ int main(int argc, char** argv)
         }
         
 
-        std::cout << "POSE " << spid << ". " << spid + 1 / sensor_poses.size() << " poses. ";
+        std::cout << "POSE " << spid << ". " << spid + 1 << "/" << sensor_poses.size() << " poses. ";
         if(spid > 0)
         {
             std::cout << "Approx time: ";
