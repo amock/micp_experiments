@@ -14,5 +14,9 @@
     <rosparam command="load" file="$(find micp_complex_urban)/config/urban02.yaml" />
 </node>
 
+# Simple odometry
+<node pkg="micp_complex_urban" type="compute_odometry" name="compute_odometry" output="screen">
+</node>
+
 
 </launch>

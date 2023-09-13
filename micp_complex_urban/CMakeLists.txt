@@ -23,6 +23,7 @@ set(ROS_DEPS
     tf2_ros
     sensor_msgs
     geometry_msgs
+    irp_sen_msgs
 )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -57,3 +58,15 @@ target_link_libraries(car_static_transforms
     ${rmagine_LIBRARIES}
     Eigen3::Eigen
 )
+
+add_executable(compute_odometry src/compute_odometry.cpp)
+add_dependencies(compute_odometry
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(compute_odometry
+    ${catkin_LIBRARIES}
+    ${rmagine_LIBRARIES}
+    Eigen3::Eigen
+)
+

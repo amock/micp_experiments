@@ -2,11 +2,21 @@
 
 ## Cube Grid
 
+3x3 cube grid. Distance between cubes adjustable. For experiments of paper it was set to 20cm.
+
+
+
+
+
 ## AVZ
 
 Wall thickness:
 - supporting wall: 22.8cm
 - normal wall: 14.0cm
+- thin wall: 10.0cm
+- floor / ceiling: 17.2cm
+
+-> converged if pose error < 5cm
 
 ![AVZ Poses](dat/avz_poses.png)
 
