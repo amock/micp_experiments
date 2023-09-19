@@ -2,11 +2,11 @@
 
 <launch>
 
-<arg name="gui" default="false" />
+<arg name="gui" default="true" />
 <arg name="rate" default="1.0" />
+<arg name="generate_evaluation" default="false" />
 <arg name="mulran_bag" default="/home/amock/datasets/mulran/bags/KAIST/KAIST02.bag" />
 <arg name="mesh_file" default="/home/amock/datasets/micp_mulran/KAIST/mulran_kaist02_mesh_lvr2.ply" />
-<!-- <arg name="initial_guess" default="[-41.0, -35.0, 20.0, 0.0, 0.0, 2.15]" />-->
 <arg name="initial_guess" default="[-43.0322, -32.2577, 19.3177, 0.0262529, -0.0188681, 2.13118]" />
 
 # Play bag file
@@ -32,7 +32,7 @@
     <remap from="ouster/points" to="os1_points" />
 
     <param name="disable_registration" value="true" />
-    <param name="generate_evaluation" value="true" />
+    <param name="generate_evaluation" value="$(arg generate_evaluation)" />
 
     <param name="correction_mode" value="1" />
     <param name="iterations" value="20" />

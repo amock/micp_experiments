@@ -2,15 +2,16 @@
 
 <launch>
 
-<arg name="gui" default="false" />
+<arg name="gui" default="true" />
 <arg name="rate" default="1.0" />
+<arg name="generate_evaluation" default="false" />
 <arg name="mulran_bag" default="/home/amock/datasets/mulran/bags/KAIST/KAIST03.bag" />
 <arg name="mesh_file" default="/home/amock/datasets/micp_mulran/KAIST/mulran_kaist02_mesh_lvr2.ply" />
-<!--<arg name="initial_guess" default="[2.0, -103, 20.0, 0.0, 0.0, 2.14]" />-->
-<arg name="initial_guess" default="[0.180631, -100.467, 19.4429, 0.0925555, -0.0712752, 2.14831]" />
+<arg name="initial_guess" default="[-0.294161, -99.7405, 19.5222, 0.0867423, -0.056598, 2.14937]" />
+
 
 # Play bag file
-<node pkg="rosbag" type="play" name="rosbag" args="$(arg mulran_bag) -r $(arg rate) --pause" output="screen" />
+<node pkg="rosbag" type="play" name="rosbag" args="$(arg mulran_bag) -r $(arg rate)" output="screen" />
 
 # gt odometry
 <node name="leaf_odom_to_root" pkg="micp_experiments_helper" type="leaf_odom_to_root">
@@ -32,7 +33,7 @@
     <remap from="ouster/points" to="os1_points" />
 
     <param name="disable_registration" value="true" />
-    <param name="generate_evaluation" value="true" />
+    <param name="generate_evaluation" value="$(arg generate_evaluation)" />
 
     <param name="correction_mode" value="1" />
     <param name="iterations" value="20" />

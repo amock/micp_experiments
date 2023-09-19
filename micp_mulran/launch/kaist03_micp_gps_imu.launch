@@ -4,10 +4,10 @@
 
 <arg name="gui" default="true" />
 <arg name="rate" default="1.0" />
+<arg name="generate_evaluation" default="false" />
 <arg name="mulran_bag" default="/home/amock/datasets/mulran/bags/KAIST/KAIST03.bag" />
 <arg name="mesh_file" default="/home/amock/datasets/micp_mulran/KAIST/mulran_kaist02_mesh_lvr2.ply" />
 <arg name="initial_guess" default="[2.0, -103, 20.0, 0.0, 0.0, 2.14]" />
-<arg name="generate_evaluation" default="false" />
 
 # run bag file
 <node pkg="rosbag" type="play" name="rosbag" args="$(arg mulran_bag) -r $(arg rate) --pause" output="screen" />
