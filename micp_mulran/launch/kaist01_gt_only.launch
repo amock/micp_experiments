@@ -44,7 +44,6 @@
 
 <group if="$(arg gui)">
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(find micp_mulran)/rviz/micp_mulran.rviz">
-        <param name="mesh_file" type="string" value="$(arg mesh_file)" />
         <rosparam param="rviz_map_plugin" subst_value="True">
             Map3D: $(arg mesh_file)
         </rosparam>

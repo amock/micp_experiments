@@ -2,14 +2,17 @@
 
 MICP-L usage and evaluation on Mulran datasets. This is a ROS-package and needs to be placed into a ROS-workspace.
 
-For each Mulran environment (DCC, KAIST, Riverside, Sejong City) we reconstructed one mesh map using lvr2:
+<!-- For each Mulran environment (DCC, KAIST, Riverside, Sejong City) we reconstructed one mesh map using lvr2: -->
 
-|     Sequence       |   Map     |
+<!-- |     Sequence       |   Map     |
 |:-------------:|:---------------:|
 | DCC | TODO  |
 | KAIST | `mulran_kaist02_mesh_lvr2.ply` |
 | Riverside | TODO |
-| Sejong City | TODO |
+| Sejong City | TODO | -->
+
+We reconstructed one mesh map using lvr2 from the second KAIST sequence, named `mulran_kaist02_mesh_lvr2.ply`.
+
 
 ## Results as Bag-Files
 
@@ -26,7 +29,6 @@ We used a desktop pc with the following specifications:
 - Rmagine Version (v2.1.0) - Only the Embree (CPU) backend is used
 - RMCL (v1.1.2)
 - (optional) For visualizations: https://github.com/aock/mesh_tools
-
 
 The reproduction of the resulting Bag-File can be done by executing the respective launch-files in this repository. Each launch-file requires two files: a Bag-File for sensor data and a Mesh-Map-file as map for MICP-L.
 
@@ -86,5 +88,5 @@ To produce evaluation files you have of execute.
 roslaunch micp_mulran kaist01_micp_gps_imu.launch gui:=false generate_evaluation:=true rate:=0.5
 ```
 
-Since generating the evaluation metrics requires some time, the bag file rate was halfed here, to prevent false results because of doing the evaluation. 
+Since generating the evaluation metrics requires some time, the bag file rate was halved here, to prevent false results because of doing the evaluation. 
 
