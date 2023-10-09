@@ -29,7 +29,11 @@ find_package(catkin REQUIRED COMPONENTS
     ${ROS_DEPS}
 )
 
-find_package(rmagine 2.1.1 REQUIRED)
+find_package(rmagine 2.2.1... 
+COMPONENTS 
+  core
+  embree
+)
 
 find_package(Eigen3 REQUIRED)
 
@@ -43,8 +47,7 @@ catkin_package(
 )
 
 include_directories(
-    ${catkin_INCLUDE_DIRS}
-    ${rmagine_INCLUDE_DIRS}    
+    ${catkin_INCLUDE_DIRS} 
 )
 
 message(WARNING "LIBS: ${catkin_LIBRARIES}")
@@ -56,7 +59,7 @@ add_dependencies(micp_convergence
 )
 target_link_libraries(micp_convergence
     ${catkin_LIBRARIES}
-    ${rmagine_LIBRARIES}
+    rmagine::embree
     Eigen3::Eigen
 )
 
@@ -68,6 +71,6 @@ add_dependencies(sensor_poses_publisher
 )
 target_link_libraries(sensor_poses_publisher
     ${catkin_LIBRARIES}
-    ${rmagine_LIBRARIES}
+    rmagine::core
     Eigen3::Eigen
 )

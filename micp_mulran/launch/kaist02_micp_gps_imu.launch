@@ -3,7 +3,7 @@
 <launch>
 
 <arg name="gui" default="true" />
-<arg name="rate" default="1.0" />
+<arg name="rate" default="2.0" />
 <arg name="generate_evaluation" default="false" />
 <arg name="mulran_bag" default="/home/amock/datasets/mulran/bags/KAIST/KAIST02.bag" />
 <arg name="mesh_file" default="/home/amock/datasets/micp_mulran/KAIST/mulran_kaist02_mesh_lvr2.ply" />

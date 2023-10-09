@@ -30,7 +30,14 @@ find_package(catkin REQUIRED COMPONENTS
     ${ROS_DEPS}
 )
 
-find_package(rmagine 2.1.1 REQUIRED)
+find_package(rmagine 2.2.1... 
+COMPONENTS
+  core
+OPTIONAL_COMPONENTS
+  embree
+  cuda
+  optix
+)
 
 find_package(Eigen3 REQUIRED)
 
@@ -45,7 +52,6 @@ catkin_package(
 
 include_directories(
     ${catkin_INCLUDE_DIRS}
-    ${rmagine_INCLUDE_DIRS}    
 )
 
 add_executable(car_static_transforms src/car_static_transforms.cpp)
@@ -55,7 +61,7 @@ add_dependencies(car_static_transforms
 )
 target_link_libraries(car_static_transforms
     ${catkin_LIBRARIES}
-    ${rmagine_LIBRARIES}
+    rmagine::core
     Eigen3::Eigen
 )
 
@@ -66,7 +72,7 @@ add_dependencies(compute_odometry
 )
 target_link_libraries(compute_odometry
     ${catkin_LIBRARIES}
-    ${rmagine_LIBRARIES}
+    rmagine::core
     Eigen3::Eigen
 )
 
