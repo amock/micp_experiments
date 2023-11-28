@@ -29,7 +29,7 @@ std::vector<geometry_msgs::TransformStamped> load_static_transforms(
 
     XmlRpc::XmlRpcValue transform_list_xml;
     nh.getParam("calibrations", transform_list_xml);
-    ROS_ASSERT(my_list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+    ROS_ASSERT(transform_list_xml.getType() == XmlRpc::XmlRpcValue::TypeArray);
 
     for (int32_t i = 0; i < transform_list_xml.size(); ++i) 
     {
