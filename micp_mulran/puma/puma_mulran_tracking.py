@@ -22,7 +22,7 @@ T_ouster_base[2, 3] = 1.805
 
 enable_visualization = False
 first_cloud_only = False
-write_evaluation = True
+write_evaluation = False
 debug_prints = True
 # larger than 5m correspondences are not considered for P2M errors
 outlier_dist = 5.0
@@ -32,7 +32,7 @@ lidar_min_range = 0.3
 lidar_max_range = 80.0
 
 # KAIST or what?
-dataset = "KAIST03"
+dataset = "KAIST01"
 
 if dataset == "KAIST01":
     mesh_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned3.ply"
@@ -48,7 +48,7 @@ if dataset == "KAIST01":
     T_base_map_init[2, 3] = 19.32
 
     # puma settings
-    max_dist = 0.5
+    max_dist = 5.0
     max_iterations = 20
     method = "p2l" # p2p, p2l, gicp
     tolerance = 0.00001
@@ -547,7 +547,7 @@ def pcl_cb(stamp, velo):
     source.transform(T_ouster_map)
 
     prev_error = 100
-    npoints = len(source.points)
+    # npoints = len(source.points)
     ninlier = 0
 
     if enable_visualization:
