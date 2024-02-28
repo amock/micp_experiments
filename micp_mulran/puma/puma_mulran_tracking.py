@@ -20,8 +20,19 @@ T_ouster_base[0, 3] = 1.704
 T_ouster_base[1, 3] = -0.021
 T_ouster_base[2, 3] = 1.805
 
+enable_visualization = False
+first_cloud_only = False
+write_evaluation = True
+debug_prints = True
+# larger than 5m correspondences are not considered for P2M errors
+outlier_dist = 5.0
+
+# scanner range
+lidar_min_range = 0.3
+lidar_max_range = 80.0
+
 # KAIST or what?
-dataset = "KAIST02"
+dataset = "KAIST03"
 
 if dataset == "KAIST01":
     mesh_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned3.ply"
@@ -30,13 +41,18 @@ if dataset == "KAIST01":
 
     T_base_map_init = np.eye(4, 4)
     T_base_map_init[:3,:3] = o3d.geometry.get_rotation_matrix_from_xyz((0.037806, 0.0252877, 2.03837))
+    # original: -115.620, 109.790, 20.5
+    # better:
     T_base_map_init[0, 3] = -112.45
     T_base_map_init[1, 3] = 108.0
     T_base_map_init[2, 3] = 19.32
 
-    max_dist = 1.0
+    # puma settings
+    max_dist = 0.5
     max_iterations = 20
     method = "p2l" # p2p, p2l, gicp
+    tolerance = 0.00001
+    voxel_downsample = False
 
 if dataset == "KAIST02":
     mesh_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned3.ply"
@@ -45,13 +61,18 @@ if dataset == "KAIST02":
 
     T_base_map_init = np.eye(4, 4)
     T_base_map_init[:3,:3] = o3d.geometry.get_rotation_matrix_from_xyz((0.0, 0.0, 2.15))
+    # original: -41.0, -35.0, 20.0
+    # better:
     T_base_map_init[0, 3] = -40.77
-    T_base_map_init[1, 3] = -36.017 
+    T_base_map_init[1, 3] = -36.017
     T_base_map_init[2, 3] = 19.24
 
-    max_dist = 1.0
+    # puma settings
+    max_dist = 0.2
     max_iterations = 20
     method = "p2l" # p2p, p2l, gicp
+    tolerance = 0.00001
+    voxel_downsample = False
 
 if dataset == "KAIST03":
     mesh_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned3.ply"
@@ -60,13 +81,18 @@ if dataset == "KAIST03":
 
     T_base_map_init = np.eye(4, 4)
     T_base_map_init[:3,:3] = o3d.geometry.get_rotation_matrix_from_xyz((0.0, 0.0, 2.14))
+    # original: 2.0, -103, 20.0
+    # better:
     T_base_map_init[0, 3] = 1.597
     T_base_map_init[1, 3] = -103.12
     T_base_map_init[2, 3] = 19.35
 
-    max_dist = 0.3
-    max_iterations = 1
+    # puma settings
+    max_dist = 0.5
+    max_iterations = 20
     method = "p2l" # p2p, p2l, gicp
+    tolerance = 0.00001
+    voxel_downsample = False
 
 
 
@@ -79,9 +105,9 @@ def load_velo_scan(file):
 def vel2pcd(points, use_intensity=False):
     pcd = o3d.geometry.PointCloud()
     points_xyz = points[:, :3]
-    points_i = points[:, -1].reshape(-1, 1)
     pcd.points = o3d.utility.Vector3dVector(points_xyz)
     if use_intensity:
+        points_i = points[:, -1].reshape(-1, 1)
         pcd.colors = o3d.utility.Vector3dVector(
             np.full_like(points_xyz, points_i)
         )
@@ -212,8 +238,7 @@ T_odom_map = T_base_map @ rigid_inv(T_base_odom)
 
 
 
-debug = True
-tolerance = 0.00001
+
 
 first_cloud = True
 
@@ -457,54 +482,88 @@ def key_callback(evt):
         max_iterations = max_iterations_tmp
 
 
+vis = None
 
-vis = o3d.visualization.VisualizerWithKeyCallback()
+if enable_visualization:
+    vis = o3d.visualization.VisualizerWithKeyCallback()
 
-KEY_A = 65
-vis.register_key_callback(KEY_A, key_callback)
+    KEY_A = 65
+    vis.register_key_callback(KEY_A, key_callback)
 
-vis.create_window()
-vis.add_geometry(mesh)
+    vis.create_window()
+    vis.add_geometry(mesh)
 
-# vis_ctr = vis.get_view_control()
-# vis_ctr.set_zoom(1.0/24.0)
-vis.poll_events()
-vis.update_renderer()
+    # vis_ctr = vis.get_view_control()
+    # vis_ctr.set_zoom(1.0/24.0)
+    vis.poll_events()
+    vis.update_renderer()
+
+eval_file = None
+if write_evaluation:
+    eval_file = open(dataset + "_eval.txt", "w")
+
+cloud_count = 0
 
 
-def pcl_cb(stamp, source):
-    global T_base_odom, T_odom_map, T_ouster_base, method, debug, max_iterations, max_dist, vis, vis_ctr
-    print(stamp, "PCL")
+
+def pcl_cb(stamp, velo):
+    global T_base_odom, T_odom_map, T_ouster_base, method, debug_prints, max_iterations, max_dist, vis, vis_ctr
+    global eval_file, enable_visualization
+    global cloud_count
+    global lidar_min_range, lidar_max_range
+
+    # filter points in range
+    npoints = velo.shape[0]
+    ranges = np.linalg.norm(velo[:,:3], axis=1)
+    valid_mask = (ranges > lidar_min_range) & (ranges < lidar_max_range)
+    velo = velo[valid_mask]
+    nvalidpoints = velo.shape[0]
+
+    # convert to open3d pcl
+    source = vel2pcd(velo)
+    source.estimate_normals()
+
+    if voxel_downsample:
+        print("DOWN!")
+        source = source.voxel_down_sample(voxel_size=0.1)
+
+
+    if debug_prints:
+        print(stamp, "PCL")
 
     # print(T_base_odom)
     T_base_map = T_odom_map @ T_base_odom
 
-    print("Base -> Map")
-    print(T_base_map)
+    if debug_prints:
+        print("Base -> Map")
+        print(T_base_map)
 
     T_ouster_map = T_base_map @ T_ouster_base
 
-    print("Ouster -> Map")
-    print(T_ouster_map)
+    if debug_prints:
+        print("Ouster -> Map")
+        print(T_ouster_map)
+    
     source.transform(T_ouster_map)
 
     prev_error = 100
     npoints = len(source.points)
     ninlier = 0
 
-    # ctr = vis.get_view_control()
-    vis.add_geometry(source)
+    if enable_visualization:
+        # ctr = vis.get_view_control()
+        vis.add_geometry(source)
 
-    # Tcam = np.eye(4)
-    # Tcam[:3, :3] = o3d.geometry.get_rotation_matrix_from_xyz((0, np.pi / 2, 0))
-    # Tcam[:3, 3] = T_ouster_map[:3,3] + np.array([0.0, 0.0, 50.0])
+        # Tcam = np.eye(4)
+        # Tcam[:3, :3] = o3d.geometry.get_rotation_matrix_from_xyz((0, np.pi / 2, 0))
+        # Tcam[:3, 3] = T_ouster_map[:3,3] + np.array([0.0, 0.0, 50.0])
 
-    vis_ctr = vis.get_view_control()
-    vis_ctr.set_lookat(T_ouster_map[:3,3])
-    vis_ctr.set_zoom(1.0/20.0)
+        vis_ctr = vis.get_view_control()
+        vis_ctr.set_lookat(T_ouster_map[:3,3])
+        vis_ctr.set_zoom(1.0/20.0)
 
-    vis.poll_events()
-    vis.update_renderer()
+        vis.poll_events()
+        vis.update_renderer()
     
     # camera_params = vis_ctr.convert_to_pinhole_camera_parameters()
     # print(camera_params)
@@ -536,7 +595,7 @@ def pcl_cb(stamp, source):
         if np.abs(prev_error - p2m_mean) < tolerance:
             break
 
-        if debug:
+        if debug_prints:
             print("Iteration {} completed".format(i))
             print("Number of inliers :", ninlier)
             print(
@@ -544,20 +603,22 @@ def pcl_cb(stamp, source):
                     err=p2m_mean, prev=prev_error
                 )
             )
+
         prev_error = p2m_mean
         ninlier = len(source_red.points)
 
-        vis.update_geometry(source)
-
-        vis.poll_events()
-        vis.update_renderer()
+        if enable_visualization:
+            vis.update_geometry(source)
+            vis.poll_events()
+            vis.update_renderer()
 
 
     T_odom_base = rigid_inv(T_base_odom)
     T_base_ouster = rigid_inv(T_ouster_base)
 
     # aufdroeseln
-    T_odom_map = (T_ouster_map @ T_base_ouster) @ T_odom_base
+    T_base_map = T_ouster_map @ T_base_ouster
+    T_odom_map = T_base_map @ T_odom_base
 
     # test
     # Po = np.array([0.0, 0.0, 0.0, 1.0])
@@ -565,9 +626,39 @@ def pcl_cb(stamp, source):
     # points = np.array([Pm[:3]])
     # source = o3d.geometry.PointCloud()
     # source.points = o3d.utility.Vector3dVector(points)
-    vis.remove_geometry(source)
 
-first_cloud_only = False
+    if enable_visualization:
+        vis.remove_geometry(source)
+
+    if write_evaluation:
+        
+        # since RCC correspondences were filtered by max_dist
+        # For P2M error we need even the bad ones
+        # I did the same for MICP-L
+        source_red, target = project_scan_to_mesh(tmesh, source, outlier_dist)
+        # distances = source_red.compute_point_cloud_distance(target)
+
+        p2ms = []
+
+        for (sp, tp, tn) in zip(source_red.points, target.points, target.normals):
+            signed_dist = (sp - tp).dot(tn)
+            # print(sp, tp, tn, "->", signed_dist)
+            dist = np.abs(signed_dist)
+            p2ms.append(dist)
+
+        p2ms = np.array(p2ms)
+
+        p2m_mean = np.mean(p2ms)
+        p2m_median = np.median(p2ms)
+
+
+        Tbm = T_base_map.flatten()
+        eval_str = ("{},"*21 + "{}\n").format(stamp, Tbm[0], Tbm[1], Tbm[2], Tbm[3], Tbm[4], Tbm[5], Tbm[6], Tbm[7], Tbm[8], Tbm[9], Tbm[10], Tbm[11], Tbm[12], Tbm[13], Tbm[14], Tbm[15], npoints, nvalidpoints, ninlier, p2m_mean, p2m_median)
+        print("Writing: ", eval_str)
+        eval_file.write(eval_str)
+
+    cloud_count += 1
+
 
 for i, (stamp, sensor_type) in enumerate(data_overview):
     if sensor_type == "GPS":
@@ -579,15 +670,14 @@ for i, (stamp, sensor_type) in enumerate(data_overview):
         pcl_filename = pcl_dir + "/" + str(stamp) + ".bin"
         print("Loading PCL from '" + pcl_filename + "'")
         velo = load_velo_scan(pcl_filename)
-        source = vel2pcd(velo)
-        source.estimate_normals()
+
 
         # endless loop to align only the first cloud
         if first_cloud_only:
             while True:
-                pcl_cb(stamp, copy.deepcopy(source) )
+                pcl_cb(stamp, copy.deepcopy(velo) )
 
-        pcl_cb(stamp, source)
+        pcl_cb(stamp, velo)
     else:
         print("ERROR sensor_type wrong:", sensor_type)
         exit()
