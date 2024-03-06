@@ -8,6 +8,7 @@
 
 #include <boost/algorithm/string.hpp>
 #include <string>
+#include <chrono>
 
 
 namespace bfs = boost::filesystem;
@@ -102,6 +103,7 @@ std::pair<size_t, sensor_msgs::msg::PointCloud> MulranDataset::next_ouster()
 
     
     ret.first = stamp;
+    ret.second.header.stamp = rclcpp::Time(ret.first);
 
     // TODO: load file
 
@@ -123,11 +125,11 @@ std::pair<size_t, sensor_msgs::msg::Imu> MulranDataset::next_imu()
     std::getline(m_imu_file, imu_line);
   
     // parse imu_line
-
     std::vector<std::string> imu_strs;
     boost::split(imu_strs, imu_line, boost::is_any_of(","));
 
     ret.first = stol(imu_strs[0]);
+    ret.second.header.stamp = rclcpp::Time(ret.first);
 
     ret.second.orientation.x = stod(imu_strs[1]);
     ret.second.orientation.y = stod(imu_strs[2]);
@@ -148,7 +150,6 @@ std::pair<size_t, sensor_msgs::msg::Imu> MulranDataset::next_imu()
     // imu_strs[14] -> mag x
     // imu_strs[15] -> mag y
     // imu_strs[16] -> mag z
-
   } else {
     ret.first = 0;
   }
@@ -168,6 +169,7 @@ std::pair<size_t, sensor_msgs::msg::NavSatFix> MulranDataset::next_gps()
     boost::split(gps_strs, gps_line, boost::is_any_of(","));
 
     ret.first = stol(gps_strs[0]);
+    ret.second.header.stamp = rclcpp::Time(ret.first);
     
     // lat, lon, alt
     ret.second.latitude = stod(gps_strs[1]);
