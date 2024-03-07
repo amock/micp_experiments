@@ -32,7 +32,7 @@ public:
   MulranDataset(std::string mulran_root);
   std::pair<size_t, std::any> next_message();
 
-// protected:
+private:
   std::pair<size_t, sensor_msgs::msg::PointCloud> next_ouster();
   std::pair<size_t, sensor_msgs::msg::Imu>        next_imu();
   std::pair<size_t, sensor_msgs::msg::NavSatFix>  next_gps();
@@ -41,10 +41,11 @@ public:
 
   std::ifstream m_imu_file;
   std::ifstream m_gps_file;
+
   std::vector<size_t> m_ouster_stamps;
   size_t m_ouster_id = 0;
-
   boost::filesystem::path m_ouster_root;
+
 };
 
 } // namespace micp_mulran2

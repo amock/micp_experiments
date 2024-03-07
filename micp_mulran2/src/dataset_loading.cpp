@@ -101,11 +101,32 @@ std::pair<size_t, sensor_msgs::msg::PointCloud> MulranDataset::next_ouster()
     size_t stamp = m_ouster_stamps[m_ouster_id];
     bfs::path ouster_filename = m_ouster_root / (std::to_string(stamp) + ".bin");
 
-    
     ret.first = stamp;
     ret.second.header.stamp = rclcpp::Time(ret.first);
+    ret.second.header.frame_id = "ouster";
 
     // TODO: load file
+    const size_t n_points = 65536;
+    ret.second.points.resize(n_points);
+    ret.second.channels.resize(1);
+    ret.second.channels[0].name = "intensity";
+    ret.second.channels[0].values.resize(n_points);
+    
+    float buf[n_points * 4];
+
+    std::ifstream in(ouster_filename.string(), std::ios_base::binary);
+    if(!in.read((char*)buf, 4 * n_points * sizeof(float)))
+    {
+      throw std::runtime_error("wrong");
+    }
+
+    for(size_t i=0; i<n_points; i++)
+    {
+      ret.second.points[i].x = buf[i * 4 + 0];
+      ret.second.points[i].y = buf[i * 4 + 1];
+      ret.second.points[i].z = buf[i * 4 + 2];
+      ret.second.channels[0].values[i] = buf[i * 4 + 3];
+    }
 
   } else {
     ret.first = 0;
