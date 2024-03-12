@@ -2,11 +2,11 @@
 <launch>
 
 <arg name="map_file" default="/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned4.ply" description="mesh map file" />
-<arg name="dataset_root" default="/media/amock/OricoAlex/uni/datasets/mulran/raw/KAIST/KAIST01" />
-<arg name="dataset_name" default="KAIST01" />
+<arg name="dataset_root" default="/media/amock/OricoAlex/uni/datasets/mulran/raw/KAIST/KAIST03" />
+<arg name="dataset_name" default="KAIST03" />
 <arg name="generate_evaluation" default="true" description="generates evaluation files for accuracies. Slows down the localization." />
 <arg name="gui" default="true" description="start preconfigured rviz." />
-<arg name="initial_guess" default="[-112.45, 108.0, 19.32, 0.037806, 0.0252877, 2.03837]" />
+<arg name="initial_guess" default="[1.597, -103.12, 19.35, 0.0, 0.0, 2.14]" />
 
 
 <node pkg="micp_mulran2" exec="micp_mulran2_mantis_node" name="micp_mulran2_mantis_node" output="screen">
