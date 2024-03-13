@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+
+<arg name="map_file" default="/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned4.ply" description="mesh map file" />
+
+<node pkg="micp_mulran2" exec="closest_point_test" name="closest_point_test" output="screen">
+  <param name="map_file" value="$(var map_file)" />
+</node>
+
+<node pkg="rviz2" exec="rviz2" name="rviz2" 
+    args="-d $(find-pkg-share micp_mulran2)/rviz/kaist.rviz">
+    <param name="rviz_mesh_tools_plugins.Map3D" value="$(var map_file)" />
+</node>
+
+</launch>

@@ -82,6 +82,41 @@ install(TARGETS micp_mulran2_node
   DESTINATION lib/${PROJECT_NAME})
 
 
+
+
+# BUILD NODE
+add_executable(closest_point_test
+  src/closest_point_test.cpp
+)
+
+target_include_directories(closest_point_test PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>"
+)
+
+ament_target_dependencies(closest_point_test
+  rclcpp
+  std_msgs
+  geometry_msgs
+  robot_localization
+  tf2_ros
+  rmcl
+  visualization_msgs
+)
+
+target_link_libraries(closest_point_test
+  micp_mulran2
+  rmagine::core
+  rmagine::embree
+)
+
+install(TARGETS closest_point_test
+  DESTINATION lib/${PROJECT_NAME})
+
+
+
+
+
 install(DIRECTORY launch rviz
     DESTINATION share/${PROJECT_NAME}
 )

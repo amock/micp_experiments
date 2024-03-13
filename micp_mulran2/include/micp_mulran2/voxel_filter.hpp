@@ -15,15 +15,18 @@ namespace micp_mulran2
 
 struct VoxelCoord
 {
+  // could use int64_t but you are only allowed to write a int42_t. then we have more space
   int32_t x;
   int32_t y;
   int32_t z;
+
 
   bool operator==(const VoxelCoord &other) const
   { 
     return (x == other.x && y == other.y && z == other.z);
   }
 
+  // with voxelsize 1cm the whole world fits in the hash map three times
   __int128 hash() const
   {
     return static_cast<__int128>(x) << 64 ^ static_cast<__int128>(y) << 32 ^ static_cast<__int128>(z);

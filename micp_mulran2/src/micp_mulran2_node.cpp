@@ -38,6 +38,10 @@ rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr pub_corr;
 rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr pub_normals;
 
 
+rclcpp::Publisher<sensor_msgs::msg::PointCloud>::SharedPtr    pub_dataset;
+
+
+
 
 bool first_msg_imu_gps = true;
 size_t first_stamp_imu_gps_ns;
@@ -57,6 +61,7 @@ size_t gps_stamp_last_ns;
 rm::Vector3d gps_last;
 
 rm::Vector3d gps_lin_vel;
+double gps_vel_cov = 100000.0;
 double gps_vel = 0.0;
 rm::Vector3d gps_cov;
 
@@ -143,7 +148,7 @@ double voxel_filter_size = -10.0;
 // GLOBAL BUFFER STORAGE
 // store valid scan points as mask
 rm::Memory<float> scan_ranges;
-rm::Memory<unsigned int, rm::RAM> scan_mask; 
+rm::Memory<unsigned int> scan_mask; 
 
 rm::Memory<rm::Point> dataset_points;
 rm::Memory<rm::Point> model_points;
@@ -208,6 +213,30 @@ double to_seconds(size_t stamp_ns)
   return static_cast<double>(stamp_ns) / (1000.0 * 1000.0 * 1000.0);
 }
 
+void publish_dataset(
+  const rm::MemoryView<rm::Point>& dataset_points, 
+  const rm::MemoryView<unsigned int>& dataset_mask,
+  rclcpp::Time stamp)
+{
+  sensor_msgs::msg::PointCloud msg;
+  msg.header.frame_id = "base";
+  msg.header.stamp = stamp;
+
+  for(size_t i=0; i<dataset_points.size(); i++)
+  {
+    if(dataset_mask[i] > 0)
+    {
+      geometry_msgs::msg::Point32 p;
+      p.x = dataset_points[i].x;
+      p.y = dataset_points[i].y;
+      p.z = dataset_points[i].z;
+      msg.points.push_back(p);
+    }
+  }
+
+  pub_dataset->publish(msg);
+}
+
 // this callback handles the odometry (prior estimate) update
 void imuCB(size_t stamp_ns, const sensor_msgs::msg::Imu& imu_msg)
 {
@@ -231,6 +260,7 @@ void imuCB(size_t stamp_ns, const sensor_msgs::msg::Imu& imu_msg)
 
     double dt = to_seconds(stamp_ns - last_imu_stamp_ns);
     double dist = gps_vel * dt;
+
     rm::Vector3d next_pos_delta = imu_orientation * rm::Vector3d{dist, 0.0, 0.0};
     pos = pos + next_pos_delta;
 
@@ -270,12 +300,13 @@ void imuCB(size_t stamp_ns, const sensor_msgs::msg::Imu& imu_msg)
 // using GPS measurements
 void gpsCB(size_t stamp_ns, const sensor_msgs::msg::NavSatFix& gps_msg)
 {
-  
   if(first_msg_imu_gps)
   {
     first_stamp_imu_gps_ns = stamp_ns;
     first_msg_imu_gps = false;
   }
+
+  std::cout << "GPS cov (x,y,z): " << gps_msg.position_covariance[0] << ", " << gps_msg.position_covariance[4] << ", " << gps_msg.position_covariance[8] << std::endl;
 
   rm::Vector3d gps_glob_current;
   gps_glob_current.z = gps_msg.altitude;
@@ -297,29 +328,48 @@ void gpsCB(size_t stamp_ns, const sensor_msgs::msg::NavSatFix& gps_msg)
     double gps_dt = to_seconds(stamp_ns - gps_stamp_last_ns);
     rm::Vector3d gps_lin_vel = gps_local / gps_dt;
 
-    double gps_vel_old = gps_vel;
-    gps_vel = gps_lin_vel.l2norm();
+    // a priori: velocity stays the same (constant velocity). uncertainty rises
+    double Q = 50.0;
+    gps_vel_cov += Q;
 
-    if(gps_vel - gps_vel_old > max_acc)
+    // a posteriori
+    // double gps_vel_old = gps_vel;
+    double gps_vel_new = gps_lin_vel.l2norm();
+    double gps_vel_cov_new = (gps_msg.position_covariance[0] + gps_msg.position_covariance[4] + gps_msg.position_covariance[9]) / 3.0;  
+
+    if(gps_vel_new - gps_vel > max_acc)
     {
-      gps_vel = gps_vel_old + max_acc;
+      gps_vel_new = gps_vel + max_acc;
     }
             
-    if(gps_vel - gps_vel_old < -max_dec)
+    if(gps_vel_new - gps_vel < -max_dec)
     {
-      gps_vel = gps_vel_old - max_dec;
+      gps_vel_new = gps_vel - max_dec;
     }
 
-    if(gps_vel > max_speed)
+    if(gps_vel_new > max_speed)
     {
-      gps_vel = max_speed;
+      gps_vel_new = max_speed;
     }
 
-    if(gps_vel < -max_speed)
+    if(gps_vel_new < -max_speed)
     {
-      gps_vel = max_speed;
+      gps_vel_new = max_speed;
     }
+
+    std::cout << "OLD GPS vel: " << gps_vel << ", cov: " << gps_vel_cov << std::endl;
+
+    // update gps_vel
+    double w_new = gps_vel_cov / (gps_vel_cov_new + gps_vel_cov); // kalman gain
+    double w_old = gps_vel_cov_new / (gps_vel_cov_new + gps_vel_cov);
+
+    std::cout << "w_old: " << w_old << ", w_new: " << w_new << std::endl;
+     
+    gps_vel = w_new * gps_vel_new + w_old * gps_vel;
+    gps_vel_cov = w_old * gps_vel_cov;
     
+    std::cout << "GPS vel: " << gps_vel << ", cov: " << gps_vel_cov << std::endl;
+
     if(fuse_mode == 1)
     {
       throw std::runtime_error("fuse_mode 1 - NOT IMPLEMENTED");
@@ -340,13 +390,15 @@ void gpsCB(size_t stamp_ns, const sensor_msgs::msg::NavSatFix& gps_msg)
 
 void drawCorrespondences(
   rm::Transform Tbm,
+  float dist_thresh,
   const rm::MemoryView<rm::Point>& dataset_points,
+  const rm::MemoryView<unsigned int>& dataset_mask,
   const rm::MemoryView<rm::Point>& model_points,
   const rm::MemoryView<rm::Vector>& model_normals, 
   const rm::MemoryView<unsigned int>& corr_valid,
   rclcpp::Time stamp)
 {
-  float corr_scale = 0.1;
+  float corr_scale = 0.05;
   unsigned int step = 1;
 
   visualization_msgs::msg::Marker corr;
@@ -379,73 +431,89 @@ void drawCorrespondences(
   blue.b = 1.0;
   blue.a = 1.0;
 
-
+  std_msgs::msg::ColorRGBA black;
+  black.r = 0.0;
+  black.g = 0.0;
+  black.b = 0.0;
+  black.a = 1.0;
 
   for(size_t i=0; i<dataset_points.size(); i += step)
   {
-    if(corr_valid[i] > 0)
+    if(corr_valid[i] > 0 && dataset_mask[i] > 0)
     {
       // transform from base coords to map coords
-      
-      
-      
-      
       rm::Point d = Tbm * dataset_points[i];
       rm::Point m = Tbm * model_points[i];
       rm::Vector n = Tbm.R * model_normals[i];
 
+      const float dist = (d - m).l2norm();
       const float signed_plane_dist = (d - m).dot(n);
 
       // nearest point on model: m2
       const rm::Vector m2 = d - n * signed_plane_dist;
-      
-
-
 
       
+
       geometry_msgs::msg::Point dros;
       geometry_msgs::msg::Point mros;
-      geometry_msgs::msg::Point m2ros;
 
       dros.x = d.x;
       dros.y = d.y;
       dros.z = d.z;
 
-      mros.x = m.x;
-      mros.y = m.y;
-      mros.z = m.z;
-      
-      m2ros.x = m2.x;
-      m2ros.y = m2.y;
-      m2ros.z = m2.z;
+      if(metric == 0) // p2l
+      {
+        if(fabs(signed_plane_dist) < dist_thresh)
+        {
+          mros.x = m2.x;
+          mros.y = m2.y;
+          mros.z = m2.z;
 
+          corr.points.push_back(dros);
+          corr.points.push_back(mros);
 
-      corr.points.push_back(dros);
-      corr.points.push_back(mros);
+          corr.colors.push_back(green);
+          corr.colors.push_back(green);
+        } else {
+          mros.x = m2.x;
+          mros.y = m2.y;
+          mros.z = m2.z;
 
-      corr.colors.push_back(red);
-      corr.colors.push_back(red);
+          corr.points.push_back(dros);
+          corr.points.push_back(mros);
 
-      corr.points.push_back(dros);
-      corr.points.push_back(m2ros);
+          corr.colors.push_back(black);
+          corr.colors.push_back(black);
+        }
+      } else if(metric == 1) { // p2p
+        if(dist < dist_thresh)
+        {
+          mros.x = m.x;
+          mros.y = m.y;
+          mros.z = m.z;
+          
+          corr.points.push_back(dros);
+          corr.points.push_back(mros);
 
-      corr.colors.push_back(green);
-      corr.colors.push_back(green);
+          corr.colors.push_back(red);
+          corr.colors.push_back(red);
+        } else {
+          mros.x = m.x;
+          mros.y = m.y;
+          mros.z = m.z;
+          
+          corr.points.push_back(dros);
+          corr.points.push_back(mros);
 
-      // complete triangle
-
-      corr.points.push_back(mros);
-      corr.points.push_back(m2ros);
-
-      corr.colors.push_back(blue);
-      corr.colors.push_back(blue);
-
+          corr.colors.push_back(black);
+          corr.colors.push_back(black);
+        }
+      }
     }
   }
 
   std::cout << "Draw " << corr.points.size() / 2 << " correspondences ..." << std::endl;
   pub_corr->publish(corr);
-
 }
 
 // MICP-L
@@ -494,24 +562,22 @@ void cloudCB(size_t stamp_ns, const sensor_msgs::msg::PointCloud& pcl)
       // ouster cloud is in sensor's base coordinate frame but not in actual measurement (sensor) coordinate frame.
       rm::Vector3 P_sensor = T_ouster_sensor * P_ouster; // transform to sensor coords
       float range_est = P_sensor.l2norm();
-      float theta_est = atan2(P_sensor.y, P_sensor.x);    // horizontal
-      float phi_est = atan2(P_sensor.z, range_est); // vertical
 
       if (range_est > ouster_model.range.min 
           && range_est < ouster_model.range.max)
       {
-          if(P_sensor.l2normSquared() > 0.0001)
-          {
-              ouster_model.dirs[i] = P_sensor.normalize();
-              scan_ranges[i] = range_est;
-              scan_mask[i] = 1;
+        if(P_sensor.l2normSquared() > 0.0001)
+        {
+          ouster_model.dirs[i] = P_sensor.normalize();
+          scan_ranges[i] = range_est;
+          scan_mask[i] = 1;
 
-              n_valid++;
-          } else {
-              // dir too short
-              scan_ranges[i] = -0.1;
-              scan_mask[i] = 0;
-          }
+          n_valid++;
+        } else {
+          // dir too short
+          scan_ranges[i] = -0.1;
+          scan_mask[i] = 0;
+        }
       }
       else
       {
@@ -523,6 +589,7 @@ void cloudCB(size_t stamp_ns, const sensor_msgs::msg::PointCloud& pcl)
     {
         // TODO: write appropriate things into buffers
         scan_ranges[i] = -0.1;
+        scan_mask[i] = 0;
     }
   }
 
@@ -537,16 +604,18 @@ void cloudCB(size_t stamp_ns, const sensor_msgs::msg::PointCloud& pcl)
 
   size_t num_registration = inner_iterations * outer_iterations;
 
+  if(dataset_points.size() != n_scan_points)
+  {   
+    // Resize buffers!
+    dataset_points.resize(n_scan_points);
+    corr_valid.resize(n_scan_points);
+    model_points.resize(n_scan_points);
+    model_normals.resize(n_scan_points);
+  }
+
   if(!disable_registration && num_registration > 0)
   {
-    if(dataset_points.size() != n_scan_points)
-    {   
-      // Resize buffers!
-      dataset_points.resize(n_scan_points);
-      corr_valid.resize(n_scan_points);
-      model_points.resize(n_scan_points);
-      model_normals.resize(n_scan_points);
-    }
+    
 
     // std::cout << "Start Registration Iterations (" << iterations << ")" << std::endl;
 
@@ -772,23 +841,24 @@ void cloudCB(size_t stamp_ns, const sensor_msgs::msg::PointCloud& pcl)
     T.transform.rotation.y = T_odom_map.R.y;
     T.transform.rotation.z = T_odom_map.R.z;
     T.transform.rotation.w = T_odom_map.R.w;
-    tf_broadcaster_static->sendTransform(T);
+    tf_broadcaster->sendTransform(T);
 
     pub_pcl->publish(pcl);
 
+
     // draw most recent correspondences
-    // rm::Transform Tsb = (T_ouster_base * T_sensor_ouster).cast<float>();
-    // rm::Transform Tbm = (T_odom_map * T_base_odom).cast<float>();
-    // if(correspondence_type == 0)
-    // {
-    //   closestPoints(Tsb, Tbm, corr_dist_thresh, ouster_model, scan_ranges, dataset_points, model_points, model_normals, corr_valid);
-    // } else if(correspondence_type == 1) {
-    //   corr->findRCC(Tbm, dataset_points, model_points, model_normals, corr_valid);
-    // }
+    rm::Transform Tsb = (T_ouster_base * T_sensor_ouster).cast<float>();
+    rm::Transform Tbm = (T_odom_map * T_base_odom).cast<float>();
+    if(correspondence_type == 0)
+    {
+      corr->findRCC(Tbm, dataset_points, model_points, model_normals, corr_valid);
+    } else if(correspondence_type == 1) {
+      corr->findCPC(Tbm, dataset_points, model_points, model_normals, corr_valid);
+    }
 
-    // drawCorrespondences(Tbm, dataset_points, model_points, model_normals, corr_valid, pcl.header.stamp);
+    // publish_dataset(dataset_points, scan_mask, pcl.header.stamp);
 
-    // TODO tf broadcaster
+    drawCorrespondences(Tbm, corr_dist_thresh, dataset_points, scan_mask, model_points, model_normals, corr_valid, pcl.header.stamp);
   }
 }
 
@@ -806,6 +876,8 @@ void initNode()
   pub_gps = node->create_publisher<sensor_msgs::msg::NavSatFix>("gps", rclcpp::SensorDataQoS());
   pub_corr = node->create_publisher<visualization_msgs::msg::Marker>("corr", rclcpp::SensorDataQoS());
   pub_normals = node->create_publisher<visualization_msgs::msg::Marker>("normals", rclcpp::SensorDataQoS());
+
+  pub_dataset = node->create_publisher<sensor_msgs::msg::PointCloud>("dataset", rclcpp::SensorDataQoS());
 
   // parameter declarations
 }
@@ -945,6 +1017,9 @@ void loadParams()
   ouster_model.range.min = min_range;
   ouster_model.range.max = max_range;
 
+
+  
+
   const rm::Transformd T_sensor_base = T_ouster_base * T_sensor_ouster;
   corr->setTsb(T_sensor_base.cast<float>());
 
@@ -962,7 +1037,9 @@ void loadParams()
 
 }
 
-std::vector<geometry_msgs::msg::Point32> filter_ranges(const std::vector<geometry_msgs::msg::Point32>& points, float range_min, float range_max)
+std::vector<geometry_msgs::msg::Point32> filter_ranges(
+  const std::vector<geometry_msgs::msg::Point32>& points, 
+  float range_min, float range_max)
 {
   std::vector<geometry_msgs::msg::Point32> points_out;
   
@@ -991,6 +1068,8 @@ void printInfo()
   std::cout << "- Correspondences: " << get_correspondences_type_name() << std::endl;
   std::cout << "- Optimizer: " << get_optimizer_name() << std::endl;
   std::cout << "- Metric: " << get_metric_name() << std::endl;
+
+  std::cout << "- LiDAR range: " << ouster_model.range.min << " - " << ouster_model.range.max << std::endl;
   
 }
 
@@ -1012,16 +1091,25 @@ int main(int argc, char** argv)
   printInfo();
 
   // WAIT TO SEE THE INFO
-  node->get_clock()->sleep_for(std::chrono::milliseconds(2s));
+  node->get_clock()->sleep_for(std::chrono::milliseconds(5s));
   executor.spin_some();
 
 
+  std::optional<size_t> first_stamp;
 
 
   MulranDataset ds(dataset_root);
   for(auto msg = ds.next_message(); msg.first > 0; msg = ds.next_message())
   {
     size_t stamp = msg.first;
+    if(!first_stamp)
+    {
+      first_stamp = stamp;
+    }
+
+    size_t stamp_since_start = stamp - *first_stamp;
+
+    std::cout << "seconds since beginning: " << to_seconds(stamp_since_start) << std::endl;
     if(msg.second.type() == typeid(sensor_msgs::msg::PointCloud))
     {
       std::cout << stamp << ": PCL" << std::endl;
