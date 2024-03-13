@@ -113,10 +113,14 @@ rmcl::CorrectionPtr umeyama;
 rm::O1DnModel ouster_model;
 
 // MICP-L params
-
 // TODO: more. Ceres, GN
 // 0: Umeyama
-size_t optimization_strategy = 0;
+size_t optimizer = 0;
+
+
+// 0: P2L
+// 1: P2P
+size_t metric = 0;
 
 // 0: Closest Point Correspondences
 // 1: Raycasting Correspondences
@@ -162,78 +166,41 @@ double outlier_dist = 5.0;
 
 size_t delay_ms = 100;
 
-
-void findCP(
-  rm::Transform Tsb,
-  rm::Transform Tbm, 
-  float distance_threshold, 
-  const rm::O1DnModel& model,
-  const rm::MemoryView<float>& ranges,
-  rm::MemoryView<rm::Point>& dataset_points,
-  rm::MemoryView<rm::Point>& model_points,
-  rm::MemoryView<rm::Vector>& model_normals, 
-  rm::MemoryView<unsigned int>& corr_valid)
+std::string get_optimizer_name()
 {
-  const rmagine::Transform Tsm = Tbm * Tsb;
-  const rmagine::Transform Tmb = ~Tbm;
-
-  
-  for(unsigned int vid = 0; vid < model.getHeight(); vid++)
+  if(optimizer == 0)
   {
-    #pragma omp parallel for
-    for(unsigned int hid = 0; hid < model.getWidth(); hid++)
-    {
-      const unsigned int loc_id = model.getBufferId(vid, hid);
-      const float range_real = ranges[loc_id];
-
-      if(range_real < model.range.min 
-          || range_real > model.range.max)
-      {
-          dataset_points[loc_id] = {0.0f, 0.0f, 0.0f};
-          model_points[loc_id] = {0.0f, 0.0f, 0.0f};
-          corr_valid[loc_id] = 0;
-          continue;
-      }
-
-      const rm::Vector ray_orig_s = model.getOrigin(vid, hid);
-      const rm::Vector ray_dir_s = model.getDirection(vid, hid);
-
-      const rm::Vector ray_orig_m = Tsm * ray_orig_s;
-      const rm::Vector ray_dir_m = Tsm.R * ray_dir_s;
-
-      const rm::Point P_est_m = ray_orig_m + ray_dir_m * range_real;
-
-      rm::ClosestPointResult res = mesh->closestPoint(P_est_m);
-
-      bool res_valid = res.geomID != RTC_INVALID_GEOMETRY_ID && res.primID != RTC_INVALID_GEOMETRY_ID;
-
-      if(res_valid)
-      {
-        // map space
-        rm::Vector nint_m = res.n;
-        nint_m.normalizeInplace();
-        rm::Vector nint_b = Tmb.R * nint_m;
-
-        const rm::Point pint_m = res.p;
-        const rm::Point pint_b = Tmb * pint_m;
-
-        const rm::Vector preal_s = ray_orig_s + ray_dir_s * range_real;
-        const rm::Vector preal_b = Tsb * preal_s;
-        dataset_points[loc_id] = preal_b;
-
-        model_points[loc_id] = pint_b;
-        model_normals[loc_id] = nint_b;
-        corr_valid[loc_id] = 1;
-      } else {
-        // das kann garnicht sein
-        dataset_points[loc_id] = {0.0f, 0.0f, 0.0f};
-        model_points[loc_id] = {0.0f, 0.0f, 0.0f};
-        model_normals[loc_id] = {0.0f, 0.0f, 0.0f};
-        corr_valid[loc_id] = 0;
-      }
-
-    }
+    return "UM"; 
+  } else {
+    throw std::runtime_error("NOT IMPLEMENTED");
   }
+  return "";
+}
+
+std::string get_metric_name()
+{
+  if(metric == 0)
+  {
+    return "P2L";
+  } else if(metric == 1) {
+    return "P2P";
+  } else {
+    throw std::runtime_error("NOT IMPLEMENTED");
+  }
+  return "";
+}
+
+std::string get_correspondences_type_name()
+{
+  if(correspondence_type == 0)
+  {
+    return "RC";
+  } else if(correspondence_type == 1) {
+    return "CP";
+  } else {
+    throw std::runtime_error("NOT IMPLEMENTED");
+  }
+  return "";
 }
 
 double to_seconds(size_t stamp_ns)
@@ -618,9 +585,9 @@ void cloudCB(size_t stamp_ns, const sensor_msgs::msg::PointCloud& pcl)
       
       if(correspondence_type == 0)
       {
-        findCP(Tsb, Tbm, corr_dist_thresh, ouster_model, scan_ranges, dataset_points, model_points, model_normals, corr_valid);
-      } else if(correspondence_type == 1) {
         corr->findRCC(Tbm, dataset_points, model_points, model_normals, corr_valid);
+      } else if(correspondence_type == 1) {
+        corr->findCPC(Tbm, dataset_points, model_points, model_normals, corr_valid);
       }
       
       // rm::Transform T_delta_total;
@@ -630,16 +597,28 @@ void cloudCB(size_t stamp_ns, const sensor_msgs::msg::PointCloud& pcl)
       // sw();
       for(size_t j = 0; j < n_iterations_inner; j++)
       {
-        if(optimization_strategy == 0)
+        if(optimizer == 0) // FAST UMEYAMA
         {
-          rmcl::means_covs_p2l_online_batched(
-            T_delta_total,
-            dataset_points, scan_mask, // from
-            model_points, model_normals, // to
-            corr_valid,
-            corr_dist_thresh,
-            res.ds, res.ms, // outputs
-            res.Cs, res.Ncorr);
+          if(metric == 0) // Point to Plane
+          {
+            rmcl::means_covs_p2l_online_batched(
+              T_delta_total,
+              dataset_points, scan_mask, // from
+              model_points, model_normals, // to
+              corr_valid,
+              corr_dist_thresh,
+              res.ds, res.ms, // outputs
+              res.Cs, res.Ncorr);
+          } else if(metric == 1) { // Point to Point
+            rmcl::means_covs_p2p_online_batched(
+              T_delta_total,
+              dataset_points, scan_mask, // from
+              model_points, // to
+              corr_valid,
+              corr_dist_thresh,
+              res.ds, res.ms, // outputs
+              res.Cs, res.Ncorr);
+          }
 
           auto Tdeltas = umeyama->correction_from_covs(res);
 
@@ -770,7 +749,7 @@ void cloudCB(size_t stamp_ns, const sensor_msgs::msg::PointCloud& pcl)
   
     if(!eval_file_tum.is_open())
     {
-      std::string filename = std::string("MICP") + "_" + dataset_name + ".tum";
+      std::string filename = dataset_name + "-" + std::string("MICP") + "-" + get_correspondences_type_name() + "-" + get_metric_name() + ".tum";
       eval_file_tum.open(filename, std::ios::out);
       eval_file_tum.precision(std::numeric_limits<double>::max_digits10 + 2);
       eval_file_tum << std::fixed;
@@ -976,8 +955,10 @@ void loadParams()
   delay_ms = rmcl::get_parameter<int>(node, "delay_ms", 1);
 
   correspondence_type = rmcl::get_parameter<int>(node, "correspondence_type", 0);
+  optimizer = rmcl::get_parameter<int>(node, "optimizer", 0);
+  metric = rmcl::get_parameter<int>(node, "metric", 0);
 
-  optimization_strategy = rmcl::get_parameter<int>(node, "optimization_strategy", 0);
+  enable_visualization = rmcl::get_parameter<bool>(node, "enable_visualization", true);
 
 }
 
@@ -1002,13 +983,22 @@ std::vector<geometry_msgs::msg::Point32> filter_ranges(const std::vector<geometr
   return points_out;
 }
 
+
+void printInfo()
+{
+  std::cout << "SETTINGS:" << std::endl;
+  
+  std::cout << "- Correspondences: " << get_correspondences_type_name() << std::endl;
+  std::cout << "- Optimizer: " << get_optimizer_name() << std::endl;
+  std::cout << "- Metric: " << get_metric_name() << std::endl;
+  
+}
+
 int main(int argc, char** argv)
 {
-  rclcpp::init(argc, argv);
+  rclcpp::init(argc, argv);  
 
-  std::cout << "TEST" << std::endl;
-
-  
+  std::cout << "STARTING MICP MULRAN EVALUATION" << std::endl;
 
   initNode();
 
@@ -1018,6 +1008,13 @@ int main(int argc, char** argv)
   initStaticTransforms();
 
   loadParams();
+
+  printInfo();
+
+  // WAIT TO SEE THE INFO
+  node->get_clock()->sleep_for(std::chrono::milliseconds(2s));
+  executor.spin_some();
+
 
 
 
