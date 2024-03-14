@@ -23,8 +23,6 @@ find_package(rmagine REQUIRED COMPONENTS
 
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 
-
-
 # BUILD LIB
 add_library(micp_mulran2
   src/dataset_loading.cpp
@@ -70,6 +68,7 @@ ament_target_dependencies(micp_mulran2_node
   tf2_ros
   rmcl
   visualization_msgs
+  imu_filter_madgwick
 )
 
 target_link_libraries(micp_mulran2_node

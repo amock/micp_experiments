@@ -24,7 +24,7 @@
   <!-- Metric -->
   <!-- 0: Point to Plane -->
   <!-- 1: Point to Point -->
-  <param name="metric" value="1" />
+  <param name="metric" value="0" />
   <!-- Correspondence Type -->
   <!-- 0: Ray Casting Correspondences -->
   <!-- 1: Closest Point Correspondences -->
@@ -33,10 +33,10 @@
   <!-- steps of minimization recalculating correspondences -->
   <param name="outer_iterations" value="1" />
   <!-- steps of minimization with given correspondences -->
-  <param name="inner_iterations" value="25" />
+  <param name="inner_iterations" value="20" />
   <!-- TOTAL iterations = outer_iterations * inner_iterations -->
   
-  <param name="min_range" value="5.0" />
+  <param name="min_range" value="1.5" />
   <param name="max_range" value="80.0" />
 
   <!-- SOMETIMES THE ROBOT IS DRIVING WITHOUT HAVING A MAP -->
@@ -46,10 +46,10 @@
   <!-- ratio_valid_hits == 1 -> corr_dist_thresh = corr_dist_thresh_min -->
   <!-- ratio_valid_hits == 0 -> corr_dist_thresh = corr_dist_thresh_max -->
   <!-- interpolate in beetween -->
-  <param name="corr_dist_thresh_min" value="0.8" />
-  <param name="corr_dist_thresh_max" value="0.8" />
+  <param name="corr_dist_thresh_min" value="2.0" />
+  <param name="corr_dist_thresh_max" value="2.0" />
 
-  <param name="voxel_filter_size" value="-0.8" />
+  <param name="voxel_filter_size" value="-1.0" />
   <param name="delay_ms" value="1" />
 </node>
 

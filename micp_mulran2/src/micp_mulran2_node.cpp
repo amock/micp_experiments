@@ -23,6 +23,12 @@
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
+#include <imu_filter_madgwick/imu_filter.h>
+
+
+
+
+
 
 using namespace micp_mulran2;
 using namespace std::chrono_literals;
@@ -39,9 +45,10 @@ rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr pub_normals;
 
 
 rclcpp::Publisher<sensor_msgs::msg::PointCloud>::SharedPtr    pub_dataset;
+rclcpp::Publisher<sensor_msgs::msg::PointCloud>::SharedPtr    pub_model;
 
 
-
+ImuFilter imu_filter;
 
 bool first_msg_imu_gps = true;
 size_t first_stamp_imu_gps_ns;
@@ -237,6 +244,31 @@ void publish_dataset(
   pub_dataset->publish(msg);
 }
 
+
+void publish_model(
+  const rm::MemoryView<rm::Point>& model_points, 
+  const rm::MemoryView<unsigned int>& model_mask,
+  rclcpp::Time stamp)
+{
+  sensor_msgs::msg::PointCloud msg;
+  msg.header.frame_id = "base";
+  msg.header.stamp = stamp;
+
+  for(size_t i=0; i<model_points.size(); i++)
+  {
+    if(model_mask[i] > 0)
+    {
+      geometry_msgs::msg::Point32 p;
+      p.x = model_points[i].x;
+      p.y = model_points[i].y;
+      p.z = model_points[i].z;
+      msg.points.push_back(p);
+    }
+  }
+
+  pub_model->publish(msg);
+}
+
 // this callback handles the odometry (prior estimate) update
 void imuCB(size_t stamp_ns, const sensor_msgs::msg::Imu& imu_msg)
 {
@@ -255,10 +287,21 @@ void imuCB(size_t stamp_ns, const sensor_msgs::msg::Imu& imu_msg)
     pos.z = 0.0;
 
     imu_heading_start = orient_glob;
+    imu_filter.setOrientation(imu_msg.orientation.w, imu_msg.orientation.x, imu_msg.orientation.y, imu_msg.orientation.z);
   } else {
-    rm::Quaterniond imu_orientation = ~imu_heading_start * orient_glob;
 
     double dt = to_seconds(stamp_ns - last_imu_stamp_ns);
+
+    // std::cout << "LIN ACC: " << imu_msg.linear_acceleration.x << ", " << imu_msg.linear_acceleration.y << ", " << imu_msg.linear_acceleration.z << std::endl;
+    imu_filter.madgwickAHRSupdateIMU(
+                  imu_msg.angular_velocity.x, imu_msg.angular_velocity.y, imu_msg.angular_velocity.z,
+                  imu_msg.linear_acceleration.x, imu_msg.linear_acceleration.y, imu_msg.linear_acceleration.z, dt);
+
+    imu_filter.getOrientation(orient_glob.w, orient_glob.x, orient_glob.y, orient_glob.z);
+
+
+    rm::Quaterniond imu_orientation = ~imu_heading_start * orient_glob;
+
     double dist = gps_vel * dt;
 
     rm::Vector3d next_pos_delta = imu_orientation * rm::Vector3d{dist, 0.0, 0.0};
@@ -329,13 +372,18 @@ void gpsCB(size_t stamp_ns, const sensor_msgs::msg::NavSatFix& gps_msg)
     rm::Vector3d gps_lin_vel = gps_local / gps_dt;
 
     // a priori: velocity stays the same (constant velocity). uncertainty rises
-    double Q = 50.0;
+    double Q = 1.0;
     gps_vel_cov += Q;
 
     // a posteriori
     // double gps_vel_old = gps_vel;
     double gps_vel_new = gps_lin_vel.l2norm();
-    double gps_vel_cov_new = (gps_msg.position_covariance[0] + gps_msg.position_covariance[4] + gps_msg.position_covariance[9]) / 3.0;  
+    double gps_vel_cov_new = (gps_msg.position_covariance[0] + gps_msg.position_covariance[4] + gps_msg.position_covariance[9]) / 3.0;
+
+    // if(gps_vel_cov_new > 500.0)
+    // {
+    //   std::cout << "!!!!!!!!!!!!!!!!!!!! GPS COV: " <<  gps_vel_cov_new << std::endl;
+    // }
 
     if(gps_vel_new - gps_vel > max_acc)
     {
@@ -357,18 +405,24 @@ void gpsCB(size_t stamp_ns, const sensor_msgs::msg::NavSatFix& gps_msg)
       gps_vel_new = max_speed;
     }
 
-    std::cout << "OLD GPS vel: " << gps_vel << ", cov: " << gps_vel_cov << std::endl;
+    bool kf = false;
+    if(kf)
+    {
+      std::cout << "OLD GPS vel: " << gps_vel << ", cov: " << gps_vel_cov << std::endl;
 
-    // update gps_vel
-    double w_new = gps_vel_cov / (gps_vel_cov_new + gps_vel_cov); // kalman gain
-    double w_old = gps_vel_cov_new / (gps_vel_cov_new + gps_vel_cov);
+      // update gps_vel
+      double w_new = gps_vel_cov / (gps_vel_cov_new + gps_vel_cov); // kalman gain
+      double w_old = gps_vel_cov_new / (gps_vel_cov_new + gps_vel_cov);
 
-    std::cout << "w_old: " << w_old << ", w_new: " << w_new << std::endl;
-     
-    gps_vel = w_new * gps_vel_new + w_old * gps_vel;
-    gps_vel_cov = w_old * gps_vel_cov;
-    
-    std::cout << "GPS vel: " << gps_vel << ", cov: " << gps_vel_cov << std::endl;
+      std::cout << "w_old: " << w_old << ", w_new: " << w_new << std::endl;
+      
+      gps_vel = w_new * gps_vel_new + w_old * gps_vel;
+      gps_vel_cov = w_old * gps_vel_cov;
+      
+      std::cout << "GPS vel: " << gps_vel << ", cov: " << gps_vel_cov << std::endl;
+    } else {
+      gps_vel = gps_vel_new;
+    }
 
     if(fuse_mode == 1)
     {
@@ -451,8 +505,6 @@ void drawCorrespondences(
 
       // nearest point on model: m2
       const rm::Vector m2 = d - n * signed_plane_dist;
-
-      
 
       geometry_msgs::msg::Point dros;
       geometry_msgs::msg::Point mros;
@@ -829,6 +881,24 @@ void cloudCB(size_t stamp_ns, const sensor_msgs::msg::PointCloud& pcl)
 
   if(enable_visualization)
   {
+    rm::Transformd T_base_map = T_odom_map * T_base_odom;
+
+    // draw most recent correspondences
+    // rm::Transform Tsb = (T_ouster_base * T_sensor_ouster).cast<float>();
+    rm::Transform Tbm = T_base_map.cast<float>();
+    if(correspondence_type == 0)
+    {
+      corr->findRCC(Tbm, dataset_points, model_points, model_normals, corr_valid);
+    } else if(correspondence_type == 1) {
+      corr->findCPC(Tbm, dataset_points, model_points, model_normals, corr_valid);
+    }
+    
+    drawCorrespondences(Tbm, corr_dist_thresh, dataset_points, scan_mask, model_points, model_normals, corr_valid, pcl.header.stamp);
+    publish_dataset(dataset_points, scan_mask, pcl.header.stamp);
+    publish_model(model_points, corr_valid, pcl.header.stamp);
+
+    pub_pcl->publish(pcl);
+  
     // broadcast
     geometry_msgs::msg::TransformStamped T;
     T.header.stamp = pcl.header.stamp;
@@ -842,23 +912,6 @@ void cloudCB(size_t stamp_ns, const sensor_msgs::msg::PointCloud& pcl)
     T.transform.rotation.z = T_odom_map.R.z;
     T.transform.rotation.w = T_odom_map.R.w;
     tf_broadcaster->sendTransform(T);
-
-    pub_pcl->publish(pcl);
-
-
-    // draw most recent correspondences
-    rm::Transform Tsb = (T_ouster_base * T_sensor_ouster).cast<float>();
-    rm::Transform Tbm = (T_odom_map * T_base_odom).cast<float>();
-    if(correspondence_type == 0)
-    {
-      corr->findRCC(Tbm, dataset_points, model_points, model_normals, corr_valid);
-    } else if(correspondence_type == 1) {
-      corr->findCPC(Tbm, dataset_points, model_points, model_normals, corr_valid);
-    }
-
-    // publish_dataset(dataset_points, scan_mask, pcl.header.stamp);
-
-    drawCorrespondences(Tbm, corr_dist_thresh, dataset_points, scan_mask, model_points, model_normals, corr_valid, pcl.header.stamp);
   }
 }
 
@@ -878,6 +931,7 @@ void initNode()
   pub_normals = node->create_publisher<visualization_msgs::msg::Marker>("normals", rclcpp::SensorDataQoS());
 
   pub_dataset = node->create_publisher<sensor_msgs::msg::PointCloud>("dataset", rclcpp::SensorDataQoS());
+  pub_model = node->create_publisher<sensor_msgs::msg::PointCloud>("model", rclcpp::SensorDataQoS());
 
   // parameter declarations
 }
@@ -1035,6 +1089,29 @@ void loadParams()
 
   enable_visualization = rmcl::get_parameter<bool>(node, "enable_visualization", true);
 
+  double madgwick_gain = rmcl::get_parameter<double>(node, "madgwick.gain", 0.1);
+  double madgwick_zeta = rmcl::get_parameter<double>(node, "madgwick.zeta", 0.0);
+
+  imu_filter.setAlgorithmGain(madgwick_gain);
+  imu_filter.setDriftBiasGain(madgwick_zeta);
+  imu_filter.setWorldFrame(WorldFrame::ENU);
+
+  // # simple odometry
+  // <node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_node">
+  //     <remap from="/imu/data" to="/imu/data"/>
+  //     <remap from="/imu/data_raw" to="/imu/data_raw" />
+
+  //     <param name="gain" value="0.1" />
+  //     <param name="zeta" value="0.0" />
+
+  //     <param name="use_mag" value="false" />
+  //     <param name="remove_gravity_vector" value="false" />
+
+  //     <param name="fixed_frame" value="imu_madgwick" />
+  //     <param name="publish_tf" value="true" />
+  //     <param name="reverse_tf" value="true" />
+  // </node>
+
 }
 
 std::vector<geometry_msgs::msg::Point32> filter_ranges(
@@ -1099,6 +1176,28 @@ int main(int argc, char** argv)
 
 
   MulranDataset ds(dataset_root);
+
+
+
+  // for(auto msg = ds.next_message(); msg.first > 0; msg = ds.next_message())
+  // {
+  //   size_t stamp = msg.first;
+  //   if(!first_stamp)
+  //   {
+  //     first_stamp = stamp;
+  //   }
+  //   size_t stamp_since_start = stamp - *first_stamp;
+
+  //   // std::cout << "seconds since beginning: " << to_seconds(stamp_since_start) << std::endl;
+
+  //   if(msg.second.type() == typeid(sensor_msgs::msg::NavSatFix))
+  //   {
+  //     sensor_msgs::msg::NavSatFix gps = std::any_cast<sensor_msgs::msg::NavSatFix>(msg.second);
+  //     rm::Vector3d cov = {gps.position_covariance[0], gps.position_covariance[4], gps.position_covariance[8]};
+  //     std::cout << to_seconds(stamp_since_start) << ": \t" << cov << std::endl;
+  //   }
+  // }
+
   for(auto msg = ds.next_message(); msg.first > 0; msg = ds.next_message())
   {
     size_t stamp = msg.first;
