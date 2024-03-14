@@ -63,12 +63,18 @@ outlier_dist = 5.0
 lidar_min_range = 0.3
 lidar_max_range = 80.0
 
+
 # KAIST or what?
-dataset = "KAIST01"
+dataset = "KAIST03"
+
+
+print("Constructing KISS-ICP!")
+config = KISSConfig()
+
 
 if dataset == "KAIST01":
-    mesh_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned3.ply"
-    pcl_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/kaist02_sampled_10p.ply"
+    mesh_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned4.ply"
+    pcl_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/kaist02_sampled_100p.ply"
 
     data_root = "/media/amock/OricoAlex/uni/datasets/mulran/raw/KAIST/KAIST01"
 
@@ -80,16 +86,19 @@ if dataset == "KAIST01":
     T_base_map_init[1, 3] = 108.0
     T_base_map_init[2, 3] = 19.32
 
-    # puma settings
-    max_dist = 5.0
-    max_iterations = 20
-    method = "p2l" # p2p, p2l, gicp
-    tolerance = 0.00001
-    voxel_downsample = False
+    # kiss config
+    config.mapping.voxel_size = 1.0
+    config.mapping.max_points_per_voxel = 20
+    config.data.deskew = False
+    config.data.max_range = 80.0
+    config.data.min_range = 0.3
+    config.adaptive_threshold.initial_threshold = 2.0
+    config.adaptive_threshold.min_motion_th = 0.1
+
 
 if dataset == "KAIST02":
-    mesh_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned3.ply"
-    pcl_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/kaist02_sampled_10p.ply"
+    mesh_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned4.ply"
+    pcl_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/kaist02_sampled_100p.ply"
 
     data_root = "/media/amock/OricoAlex/uni/datasets/mulran/raw/KAIST/KAIST02"
 
@@ -101,16 +110,19 @@ if dataset == "KAIST02":
     T_base_map_init[1, 3] = -36.017
     T_base_map_init[2, 3] = 19.24
 
-    # puma settings
-    max_dist = 0.2
-    max_iterations = 20
-    method = "p2l" # p2p, p2l, gicp
-    tolerance = 0.00001
-    voxel_downsample = False
+    # kiss config
+    config.mapping.voxel_size = 1.0
+    config.mapping.max_points_per_voxel = 20
+    config.data.deskew = False
+    config.data.max_range = 80.0
+    config.data.min_range = 0.3
+    config.adaptive_threshold.initial_threshold = 2.0
+    config.adaptive_threshold.min_motion_th = 0.1
+
 
 if dataset == "KAIST03":
-    mesh_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned3.ply"
-    pcl_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/kaist02_sampled_10p.ply"
+    mesh_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/lvr2/KAIST/kaist02_mesh_red05_cleaned4.ply"
+    pcl_filename = "/media/amock/OricoAlex/uni/datasets/mulran_meshes/kaist02_sampled_100p.ply"
 
     data_root = "/media/amock/OricoAlex/uni/datasets/mulran/raw/KAIST/KAIST03"
 
@@ -122,13 +134,13 @@ if dataset == "KAIST03":
     T_base_map_init[1, 3] = -103.12
     T_base_map_init[2, 3] = 19.35
 
-    # puma settings
-    max_dist = 0.5
-    max_iterations = 20
-    method = "p2l" # p2p, p2l, gicp
-    tolerance = 0.00001
-    voxel_downsample = False
-
+    config.mapping.voxel_size = 1.0
+    config.mapping.max_points_per_voxel = 20
+    config.data.deskew = False
+    config.data.max_range = 100.0
+    config.data.min_range = 5.0
+    config.adaptive_threshold.initial_threshold = 2.0
+    config.adaptive_threshold.min_motion_th = 0.1
 
 
 # PARAMS END
@@ -147,18 +159,6 @@ def vel2pcd(points, use_intensity=False):
             np.full_like(points_xyz, points_i)
         )
     return pcd
-
-def align_clouds(source, target, method):
-    """Align 2 PointCloud objects assuming 1-1 correspondences."""
-    assert len(source.points) == len(target.points), "N of points must match!"
-    corr = np.zeros((len(source.points), 2))
-    corr[:, 0] = np.arange(len(source.points))
-    corr[:, 1] = np.arange(len(target.points))
-    te = get_te_method(method)
-    return te.compute_transformation(
-        source, target, o3d.utility.Vector2iVector(corr)
-    )
-
 
 T_base_odom_init = np.eye(4)
 T_odom_map_init = T_base_map_init @ rigid_inv(T_base_odom_init)
@@ -283,11 +283,6 @@ first_stamp_ns = pcl_stamps[0][0]
 
 # init transformation
 # transformation = T_base_map_init @ T_ouster_base
-
-
-
-
-
 
 first_cloud = True
 
@@ -515,25 +510,10 @@ def imu_cb(stamp, data):
     last_imu_stamp = stamp
     n_imu_messages = n_imu_messages + 1
 
-max_iterations_tmp = max_iterations
-
-def key_callback(evt):
-    global max_iterations, max_iterations_tmp
-
-    if max_iterations > 0:
-        print("DISABLE REGISTRATION")
-        max_iterations_tmp = max_iterations
-        max_iterations = 0
-    else:
-        print("ENABLE REGISTRATION")
-        max_iterations = max_iterations_tmp
 
 vis = None
 if enable_visualization:
-    vis = o3d.visualization.VisualizerWithKeyCallback()
-
-    KEY_A = 65
-    vis.register_key_callback(KEY_A, key_callback)
+    vis = o3d.visualization.Visualizer()
 
     vis.create_window()
     vis.add_geometry(mesh)
@@ -550,14 +530,6 @@ if write_evaluation:
 cloud_count = 0
 
 print("Constructing KISS-ICP!")
-config = KISSConfig()
-config.mapping.voxel_size = 1.0
-config.mapping.max_points_per_voxel = 20
-config.data.deskew = False
-config.data.max_range = 100.0
-config.data.min_range = 5.0
-config.adaptive_threshold.initial_threshold = 2.0
-config.adaptive_threshold.min_motion_th = 0.1
 kiss_icp = KissICP(config)
 
 print("KISS: Map")
@@ -594,7 +566,7 @@ def pcl_cb(stamp, velo):
 
         # render
         vis_ctr = vis.get_view_control()
-        vis_ctr.set_lookat(T_base_odom[:3,3])
+        vis_ctr.set_lookat(T_ouster_odom_kiss[:3,3])
         vis_ctr.set_zoom(1.0/16.0)
 
         vis.poll_events()
