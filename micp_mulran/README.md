@@ -110,13 +110,12 @@ Since generating the evaluation metrics requires some time, the bag file rate wa
 
 
 We compared our results to the most similar approach, PUMA, and an established point-cloud-based KISS-ICP.
-Both software is originally written to do SLAM, so not especially optimized to register against a global map.
-However, with a few adjustments in the software, they were able to to it.
+Both software are originally written to do SLAM, so not especially optimized to register against a global map.
+However, with a few adjustments in the software, they were able to do tracking existing maps.
 Use the forks available here:
 
-- https://github.com/aock/PUMA (TODO - upload changes)
-- https://github.com/aock/KISS-ICP (TODO - upload changes)
-
+- https://github.com/PRBonn/puma (Branch: main, Commit: 62a1837c0f1fed37e0706304c8b25cfdf4d7277d)
+- https://github.com/aock/kiss-icp (Branch: micp-experiments, Commit: c7fbddce35d76b458a6f9658d26c00583b8db1db)
 
 
 ### Run 
