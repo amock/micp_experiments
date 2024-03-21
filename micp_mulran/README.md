@@ -53,6 +53,19 @@ Prepare the data by doing the following steps:
 
 It is planned to upload at least the meshes so that you can download them instead. I will announce it here then.
 
+My results:
+
+Mesh 1: 
+- [Download](https://kos.informatik.uni-osnabrueck.de/micpl/mulran/maps/mesh/kaist02_mesh_v21M_f12M.ply)
+- Faces: 12,408,626
+- Vertices: 21,723,560
+
+Mesh 2:
+- [Download](https://kos.informatik.uni-osnabrueck.de/micpl/mulran/maps/mesh/kaist02_mesh_v6M_f11M.ply)
+- Faces: 11,280,391
+- Vertices: 6,598,646
+
+
 ### Launching
 
 Change paths in launch files, so that they are pointing to the right files.
@@ -90,3 +103,51 @@ roslaunch micp_mulran kaist01_micp_gps_imu.launch gui:=false generate_evaluation
 
 Since generating the evaluation metrics requires some time, the bag file rate was halved here, to prevent false results because of doing the evaluation. 
 
+
+
+
+## PUMA and KISS-ICP
+
+
+We compared our results to the most similar approach, PUMA, and an established point-cloud-based KISS-ICP.
+Both software is originally written to do SLAM, so not especially optimized to register against a global map.
+However, with a few adjustments in the software, they were able to to it.
+Use the forks available here:
+
+- https://github.com/aock/PUMA (TODO - upload changes)
+- https://github.com/aock/KISS-ICP (TODO - upload changes)
+
+
+
+### Run 
+
+(How I have done it)
+
+1. Build and install KISS-ICP via pip, so that it was globally available within my conda environment.
+2. Place both the `kiss/kiss_mulran_tracking.py` and the `puma/puma_mulran_tracking.py` script into the `PUMA` folder.
+3. Make sure you have the raw MulRan data available. They should be organized like this:
+
+```console
+KAIST01
+├── global_pose.csv
+└── sensor_data
+    ├── data_stamp.csv
+    ├── gps.csv
+    ├── navtech_top_stamp.csv
+    ├── Ouster
+    │   ├── 1561000444390857630.bin
+    │   ├── ...
+    │   └── 1561001266879906087.bin
+    ├── ouster_front_stamp.csv
+    ├── radar
+    │   └── polar
+    │       ├── 1561000444438566669.png
+    │       ├── ...
+    │       └── 1561001266761334791.png
+    ├── sick_pointcloud.las
+    └── xsens_imu.csv
+```
+
+4. Generated or download mesh maps as written above. The point-cloud map for KISS-ICP with a point density of 100 points per cubic meter can be downloaded [here](https://kos.informatik.uni-osnabrueck.de/micpl/mulran/maps/pcl/kaist02_sampled_100p.ply).
+
+5. Change paths in scripts so that they point to the correct MulRan root folders and maps. Run the scripts.
