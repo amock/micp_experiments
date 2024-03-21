@@ -500,7 +500,7 @@ if enable_visualization:
 
 eval_file = None
 if write_evaluation:
-    eval_file = open(dataset + "_eval.txt", "w")
+    eval_file = open("PUMA_" + dataset + "_eval.txt", "w")
 
 cloud_count = 0
 
