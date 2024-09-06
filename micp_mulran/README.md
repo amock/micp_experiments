@@ -28,7 +28,7 @@ We used a desktop pc with the following specifications:
 - Ryzen 7 3800X
 - Rmagine Version (v2.1.0) - Only the Embree (CPU) backend is used
 - RMCL (v1.1.2)
-- (optional) For visualizations: https://github.com/aock/mesh_tools
+- (optional) For visualizations: https://github.com/amock/mesh_tools
 
 The reproduction of the resulting Bag-File can be done by executing the respective launch-files in this repository. Each launch-file requires two files: a Bag-File for sensor data and a Mesh-Map-file as map for MICP-L.
 
@@ -45,7 +45,7 @@ Prepare the data by doing the following steps:
 
 1. generate the bag file
     - download KAIST sequences from https://sites.google.com/view/mulran-pr/download
-    - convert them using https://github.com/aock/mulran2bag
+    - convert them using https://github.com/amock/mulran2bag
 2. generate a mesh map (how I have done it)
     - take sick_pointcloud.las from KAIST02 folder and open in with CloudCompare. Shift the map, to avoid floating point issues and store it as PLY file.
     - convert PLY point cloud to mesh using https://github.com/uos/lvr2
@@ -115,7 +115,7 @@ However, with a few adjustments in the software, they were able to do tracking e
 Use the forks available here:
 
 - https://github.com/PRBonn/puma (Branch: main, Commit: 62a1837c0f1fed37e0706304c8b25cfdf4d7277d)
-- https://github.com/aock/kiss-icp (Branch: micp-experiments, Commit: c7fbddce35d76b458a6f9658d26c00583b8db1db)
+- https://github.com/amock/kiss-icp (Branch: micp-experiments, Commit: c7fbddce35d76b458a6f9658d26c00583b8db1db)
 
 
 ### Run 

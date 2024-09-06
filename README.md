@@ -17,7 +17,7 @@ Collection of experiments to evaluate the performance of MICP implemented in [RM
 
 ## Visualizations
 
-- ROS1 (noetic): Fork of mesh_tools: https://github.com/aock/mesh_tools
+- ROS1 (noetic): Fork of mesh_tools: https://github.com/amock/mesh_tools
 - ROS2 (humble): https://github.com/naturerobots/mesh_tools
 
 
