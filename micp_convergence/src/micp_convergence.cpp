@@ -168,7 +168,7 @@ rmcl::CorrectionResults<rm::RAM> correct_embree_p2l(
                 const rm::Vector pscan_s = ray_orig_s + ray_dir_s * range_real;
                 const rm::Vector pscan_m = Tsm * pscan_s;
 
-                const rm::Vector pmesh_m = map->closestPoint(pscan_m);
+                const rm::Vector pmesh_m = map->closestPoint(pscan_m).p;
                 const rm::Vector pmesh_s = Tms * pmesh_m;
 
                 const float distance = (pmesh_s - pscan_s).l2norm();
